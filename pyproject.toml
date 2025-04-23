@@ -32,6 +32,16 @@ dependencies = [
     "pydantic>=2.10.6",
 ]
 
+[project.optional-dependencies]
+docs = [
+  "pymdown-extensions",
+  "mkdocstrings",
+  "mkdocs-material",
+  "mkdocstrings-python",
+  "mdx_truly_sane_lists",
+]
+tests = ["pytest"]
+
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["oqd_dataschema*"]
