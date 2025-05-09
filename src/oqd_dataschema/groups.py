@@ -40,3 +40,11 @@ class ExpectationValueDataGroup(Group):
     """
 
     expectation_value: Dataset
+
+
+class OQDTestbenchDataGroup(Group):
+    """
+    """
+
+    time: Dataset
+    voltages: Dataset
