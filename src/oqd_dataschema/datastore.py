@@ -83,5 +83,5 @@ class Datastore(BaseModel):
                 for dkey, val in group.__dict__.items():
                     if dkey == "attrs":
                         continue
-                    group.__dict__[dkey] = np.array(f[gkey][dkey][()])
+                    group.__dict__[dkey].data = np.array(f[gkey][dkey][()])
             return self
