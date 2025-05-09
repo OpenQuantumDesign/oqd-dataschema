@@ -12,11 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import pytest 
-#%%
+# %%
 import pathlib
 
 import numpy as np
+import pytest
 
 from oqd_dataschema.base import Dataset, mapping
 from oqd_dataschema.datastore import Datastore
@@ -24,26 +24,27 @@ from oqd_dataschema.groups import (
     SinaraRawDataGroup,
 )
 
-#%%         
+
+# %%
 @pytest.mark.parametrize(
-    'dtype', [
+    "dtype",
+    [
         "int32",
         "int64",
         "float32",
         "float64",
         "complex64",
         "complex128",
-    ]
+    ],
 )
 def test_serialize_deserialize(dtype):
     data = np.ones([10, 10]).astype(dtype)
     dataset = SinaraRawDataGroup(camera_images=Dataset(data=data))
     data = Datastore(groups={"test": dataset})
-    
+
     filepath = pathlib.Path("test.h5")
     data.model_dump_hdf5(filepath)
-    
+
     data_reload = Datastore.model_validate_hdf5(filepath)
 
-    assert data_reload.groups['test'].camera_images.data.dtype == mapping[dtype]
-    
+    assert data_reload.groups["test"].camera_images.data.dtype == mapping[dtype]

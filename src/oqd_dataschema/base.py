@@ -41,10 +41,10 @@ mapping = bidict(
 class Group(BaseModel):
     """
     Schema representation for a group object within an HDF5 file.
-    
-    Each grouping of data should be defined as a subclass of `Group`, and specify the datasets that it will contain. 
+
+    Each grouping of data should be defined as a subclass of `Group`, and specify the datasets that it will contain.
     This base object only has attributes, `attrs`, which are associated to the HDF5 group.
-    
+
     Attributes:
         attrs: A dictionary of attributes to append to the dataset.
 
@@ -53,30 +53,31 @@ class Group(BaseModel):
         group = Group(attrs={'version': 2, 'date': '2025-01-01'})
         ```
     """
-    
+
     attrs: Optional[dict[str, Union[int, float, str, complex]]] = {}
 
 
 class Dataset(BaseModel):
     """
     Schema representation for a dataset object to be saved within an HDF5 file.
-    
+
     Attributes:
-        dtype: The datatype of the dataset, such as `int32`, `float32`, `int64`, `float64`, etc. 
+        dtype: The datatype of the dataset, such as `int32`, `float32`, `int64`, `float64`, etc.
             Types are inferred from the `data` attribute if provided.
         shape: The shape of the dataset.
         data: The numpy ndarray of the data, from which `dtype` and `shape` are inferred.
-        
+
         attrs: A dictionary of attributes to append to the dataset.
 
     Example:
         ```
         dataset = Dataset(data=np.array([1, 2, 3, 4]))
-        
+
         dataset = Dataset(dtype='int64', shape=[4,])
         dataset.data = np.array([1, 2, 3, 4])
         ```
     """
+
     dtype: Optional[Literal[tuple(mapping.keys())]] = None
     shape: Optional[tuple[int, ...]] = None
     data: Optional[Any] = Field(default=None, exclude=True)
