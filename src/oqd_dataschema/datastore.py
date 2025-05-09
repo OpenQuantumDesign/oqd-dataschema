@@ -35,19 +35,20 @@ class Datastore(BaseModel):
     """
     Saves the model and its associated data to an HDF5 file.
     This method serializes the model's data and attributes into an HDF5 file
-    at the specified filepath. 
-    
+    at the specified filepath.
+
     Attributes:
         filepath (pathlib.Path): The path to the HDF5 file where the model data will be saved.
     """
+
     groups: dict[str, GroupSubtypes]
 
     def model_dump_hdf5(self, filepath: pathlib.Path):
         """
         Saves the model and its associated data to an HDF5 file.
         This method serializes the model's data and attributes into an HDF5 file
-        at the specified filepath. 
-        
+        at the specified filepath.
+
         Args:
             filepath (pathlib.Path): The path to the HDF5 file where the model data will be saved.
         """
@@ -73,7 +74,7 @@ class Datastore(BaseModel):
     def model_validate_hdf5(cls, filepath: pathlib.Path):
         """
         Loads the model from an HDF5 file at the specified filepath.
-        
+
         Args:
             filepath (pathlib.Path): The path to the HDF5 file where the model data will be read and validated from.
         """
@@ -83,5 +84,5 @@ class Datastore(BaseModel):
                 for dkey, val in group.__dict__.items():
                     if dkey == "attrs":
                         continue
-                    group.__dict__[dkey] = np.array(f[gkey][dkey][()])
+                    group.__dict__[dkey].data = np.array(f[gkey][dkey][()])
             return self

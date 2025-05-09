@@ -17,17 +17,19 @@ from oqd_dataschema.base import Dataset, Group
 
 class SinaraRawDataGroup(Group):
     """
-    Example `Group` for raw data from the Sinara real-time control system. 
+    Example `Group` for raw data from the Sinara real-time control system.
     This is a placeholder for demonstration and development.
     """
+
     camera_images: Dataset
 
 
 class MeasurementOutcomesDataGroup(Group):
     """
-    Example `Group` for processed data classifying the readout of the state. 
+    Example `Group` for processed data classifying the readout of the state.
     This is a placeholder for demonstration and development.
     """
+
     outcomes: Dataset
 
 
@@ -36,4 +38,5 @@ class ExpectationValueDataGroup(Group):
     Example `Group` for processed data calculating the expectation values.
     This is a placeholder for demonstration and development.
     """
+
     expectation_value: Dataset
