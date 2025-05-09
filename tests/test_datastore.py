@@ -17,13 +17,10 @@ import pytest
 import pathlib
 
 import numpy as np
-from rich.pretty import pprint
 
 from oqd_dataschema.base import Dataset, mapping
 from oqd_dataschema.datastore import Datastore
 from oqd_dataschema.groups import (
-    ExpectationValueDataGroup,
-    MeasurementOutcomesDataGroup,
     SinaraRawDataGroup,
 )
 
