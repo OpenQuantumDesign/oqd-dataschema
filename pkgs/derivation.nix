@@ -58,7 +58,7 @@ buildPythonPackage rec {
   meta = with lib; {
     description = "OpenQuantum Design Data Schema";
     homepage = "https://github.com/OpenQuantumDesign/oqd-dataschema";
-    license = licenses.apache20;
+    license = licenses.asl20;
     maintainers = with maintainers; [ ];
   };
 }
