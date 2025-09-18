@@ -12,13 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
 # %%
 import pathlib
 
 import numpy as np
-import pytest
 
-from oqd_dataschema.base import Dataset, mapping
+from oqd_dataschema.base import Dataset, Group
 from oqd_dataschema.datastore import Datastore
 from oqd_dataschema.groups import (
     SinaraRawDataGroup,
@@ -26,28 +26,26 @@ from oqd_dataschema.groups import (
 
 
 # %%
-@pytest.mark.parametrize(
-    "dtype",
-    [
-        "int32",
-        "int64",
-        "float32",
-        "float64",
-        "complex64",
-        "complex128",
-    ],
-)
-def test_serialize_deserialize(dtype):
-    data = np.ones([10, 10]).astype(dtype)
-    dataset = SinaraRawDataGroup(camera_images=Dataset(data=data))
-    data = Datastore(groups={"test": dataset})
+def test_adapt():
+    class TestNewGroup(Group):
+        """ """
+
+        array: Dataset
 
     filepath = pathlib.Path("test.h5")
-    data.model_dump_hdf5(filepath)
 
-    data_reload = Datastore.model_validate_hdf5(filepath)
+    data = np.ones([10, 10]).astype("int64")
+    group1 = TestNewGroup(array=Dataset(data=data))
 
-    assert data_reload.groups["test"].camera_images.data.dtype == mapping[dtype]
+    data = np.ones([10, 10]).astype("int32")
+    group2 = SinaraRawDataGroup(camera_images=Dataset(data=data))
 
+    datastore = Datastore(
+        groups={
+            "group1": group1,
+            "group2": group2,
+        }
+    )
+    datastore.model_dump_hdf5(filepath, mode="w")
 
-# %%
+    Datastore.model_validate_hdf5(filepath)

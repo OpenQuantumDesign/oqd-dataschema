@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
 from oqd_dataschema.base import Dataset, Group
 
 
@@ -43,8 +44,7 @@ class ExpectationValueDataGroup(Group):
 
 
 class OQDTestbenchDataGroup(Group):
-    """
-    """
+    """ """
 
     time: Dataset
     voltages: Dataset
