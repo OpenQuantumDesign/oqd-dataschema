@@ -26,11 +26,7 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
 ]
 
-dependencies = [
-    "bidict>=0.23.1",
-    "h5py>=3.13.0",
-    "pydantic>=2.10.6",
-]
+dependencies = ["bidict>=0.23.1", "h5py>=3.13.0", "pydantic>=2.10.6"]
 
 [project.optional-dependencies]
 docs = [
@@ -53,7 +49,10 @@ fixable = ["ALL"]
 
 [dependency-groups]
 dev = [
+    "jupyter>=1.1.1",
     "pre-commit>=4.1.0",
+    "rich>=14.1.0",
+    "ruff>=0.13.1",
 ]
 
 

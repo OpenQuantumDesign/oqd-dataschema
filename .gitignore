@@ -173,3 +173,4 @@ cython_debug/
 *DS_Store
 *.h5
 *.code-workspace
+.pre-commit-config.yaml
