@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # %%
-from typing import Any, Literal, Optional, Type, Union
+from typing import Any, Dict, Literal, Optional, Type, Union
 
 import numpy as np
 from bidict import bidict
@@ -39,7 +39,7 @@ mapping = bidict(
 )
 
 
-class Group(BaseModel):
+class Group(BaseModel, extra="forbid"):
     """
     Schema representation for a group object within an HDF5 file.
 
@@ -75,7 +75,7 @@ class Group(BaseModel):
         return data
 
 
-class Dataset(BaseModel):
+class Dataset(BaseModel, extra="forbid"):
     """
     Schema representation for a dataset object to be saved within an HDF5 file.
 
@@ -147,29 +147,45 @@ class Dataset(BaseModel):
 class GroupRegistry:
     """Registry for managing group types dynamically"""
 
-    _types: dict[str, Type[Group]] = {}
-    _union_cache = None
+    _types: Dict[str, Type[Group]] = {}
 
     @classmethod
     def register(cls, group_type: Type[Group]):
         """Register a new group type"""
-        cls._types[group_type.__name__] = group_type
-        cls._union_cache = None  # Invalidate cache
+        import warnings
+
+        type_name = group_type.__name__
+
+        # Check if type is already registered
+        if type_name in cls._types:
+            existing_type = cls._types[type_name]
+            if existing_type is not group_type:  # Different class with same name
+                warnings.warn(
+                    f"Group type '{type_name}' is already registered. "
+                    f"Overwriting {existing_type} with {group_type}.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+
+        cls._types[type_name] = group_type
+
+    @classmethod
+    @property
+    def union_cache(cls):
+        """Get the current Union of all registered types (computed on demand)"""
+        if not cls._types:
+            raise ValueError("No group types registered")
+
+        type_list = list(cls._types.values())
+        if len(type_list) == 1:
+            return type_list[0]
+        else:
+            return Union[tuple(type_list)]
 
     @classmethod
     def get_union(cls):
         """Get the current Union of all registered types"""
-        if cls._union_cache is None:
-            if not cls._types:
-                raise ValueError("No group types registered")
-
-            type_list = list(cls._types.values())
-            if len(type_list) == 1:
-                cls._union_cache = type_list[0]
-            else:
-                cls._union_cache = Union[tuple(type_list)]
-
-        return cls._union_cache
+        return cls.union_cache
 
     @classmethod
     def get_adapter(cls):
@@ -183,7 +199,6 @@ class GroupRegistry:
     def clear(cls):
         """Clear all registered types (useful for testing)"""
         cls._types.clear()
-        cls._union_cache = None
 
     @classmethod
     def list_types(cls):

@@ -26,7 +26,7 @@ from oqd_dataschema.base import Dataset, Group, GroupRegistry
 
 
 # %%
-class Datastore(BaseModel):
+class Datastore(BaseModel, extra="forbid"):
     """
     Saves the model and its associated data to an HDF5 file.
     This method serializes the model's data and attributes into an HDF5 file
