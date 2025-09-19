@@ -147,7 +147,8 @@ class Dataset(BaseModel, extra="forbid"):
 class GroupRegistry:
     """Registry for managing group types dynamically"""
 
-    _types: Dict[str, Type[Group]] = {}
+    _types: dict[str, Type[Group]] = {}
+    _union_cache = None
 
     @classmethod
     def register(cls, group_type: Type[Group]):
@@ -168,24 +169,22 @@ class GroupRegistry:
                 )
 
         cls._types[type_name] = group_type
-
-    @classmethod
-    @property
-    def union_cache(cls):
-        """Get the current Union of all registered types (computed on demand)"""
-        if not cls._types:
-            raise ValueError("No group types registered")
-
-        type_list = list(cls._types.values())
-        if len(type_list) == 1:
-            return type_list[0]
-        else:
-            return Union[tuple(type_list)]
+        cls._union_cache = None  # Invalidate cache
 
     @classmethod
     def get_union(cls):
         """Get the current Union of all registered types"""
-        return cls.union_cache
+        if cls._union_cache is None:
+            if not cls._types:
+                raise ValueError("No group types registered")
+
+            type_list = list(cls._types.values())
+            if len(type_list) == 1:
+                cls._union_cache = type_list[0]
+            else:
+                cls._union_cache = Union[tuple(type_list)]
+
+        return cls._union_cache
 
     @classmethod
     def get_adapter(cls):
@@ -199,6 +198,7 @@ class GroupRegistry:
     def clear(cls):
         """Clear all registered types (useful for testing)"""
         cls._types.clear()
+        cls._union_cache = None
 
     @classmethod
     def list_types(cls):
