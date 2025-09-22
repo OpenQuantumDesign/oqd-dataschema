@@ -13,10 +13,10 @@
 # limitations under the License.
 
 
-from oqd_dataschema.base import Dataset, Group
+from oqd_dataschema.base import Dataset, GroupBase
 
 
-class SinaraRawDataGroup(Group):
+class SinaraRawDataGroup(GroupBase):
     """
     Example `Group` for raw data from the Sinara real-time control system.
     This is a placeholder for demonstration and development.
@@ -25,7 +25,7 @@ class SinaraRawDataGroup(Group):
     camera_images: Dataset
 
 
-class MeasurementOutcomesDataGroup(Group):
+class MeasurementOutcomesDataGroup(GroupBase):
     """
     Example `Group` for processed data classifying the readout of the state.
     This is a placeholder for demonstration and development.
@@ -34,7 +34,7 @@ class MeasurementOutcomesDataGroup(Group):
     outcomes: Dataset
 
 
-class ExpectationValueDataGroup(Group):
+class ExpectationValueDataGroup(GroupBase):
     """
     Example `Group` for processed data calculating the expectation values.
     This is a placeholder for demonstration and development.
@@ -43,7 +43,7 @@ class ExpectationValueDataGroup(Group):
     expectation_value: Dataset
 
 
-class OQDTestbenchDataGroup(Group):
+class OQDTestbenchDataGroup(GroupBase):
     """ """
 
     time: Dataset

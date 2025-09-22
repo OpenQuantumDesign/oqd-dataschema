@@ -22,7 +22,7 @@ import numpy as np
 from pydantic import BaseModel, model_validator
 from pydantic.types import TypeVar
 
-from oqd_dataschema.base import Dataset, Group, GroupRegistry
+from oqd_dataschema.base import Dataset, GroupBase, GroupRegistry
 
 
 # %%
@@ -44,16 +44,17 @@ class Datastore(BaseModel, extra="forbid"):
         if isinstance(data, dict) and "groups" in data:
             # Get the current adapter from registry
             try:
-                adapter = GroupRegistry.get_adapter()
                 validated_groups = {}
 
                 for key, group_data in data["groups"].items():
-                    if isinstance(group_data, Group):
+                    if isinstance(group_data, GroupBase):
                         # Already a Group instance
                         validated_groups[key] = group_data
                     elif isinstance(group_data, dict):
                         # Parse dict using discriminated union
-                        validated_groups[key] = adapter.validate_python(group_data)
+                        validated_groups[key] = GroupRegistry.adapter.validate_python(
+                            group_data
+                        )
                     else:
                         raise ValueError(
                             f"Invalid group data for key '{key}': {type(group_data)}"
