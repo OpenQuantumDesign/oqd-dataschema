@@ -18,7 +18,7 @@ import pathlib
 
 import numpy as np
 
-from oqd_dataschema.base import Dataset, Group
+from oqd_dataschema.base import Dataset, GroupBase
 from oqd_dataschema.datastore import Datastore
 from oqd_dataschema.groups import (
     SinaraRawDataGroup,
@@ -27,7 +27,7 @@ from oqd_dataschema.groups import (
 
 # %%
 def test_adapt():
-    class TestNewGroup(Group):
+    class TestNewGroup(GroupBase):
         """ """
 
         array: Dataset

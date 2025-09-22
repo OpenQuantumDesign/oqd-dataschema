@@ -13,17 +13,26 @@
 # limitations under the License.
 
 # %%
-from typing import Any, Literal, Optional, Type, Union
+import warnings
+from typing import Annotated, Any, Literal, Optional, Union
 
 import numpy as np
 from bidict import bidict
 from pydantic import (
     BaseModel,
     ConfigDict,
+    Discriminator,
     Field,
     TypeAdapter,
     model_validator,
 )
+
+########################################################################################
+
+__all__ = ["GroupBase", "Dataset", "GroupRegistry"]
+
+########################################################################################
+
 
 # %%
 mapping = bidict(
@@ -39,7 +48,7 @@ mapping = bidict(
 )
 
 
-class Group(BaseModel, extra="forbid"):
+class GroupBase(BaseModel, extra="forbid"):
     """
     Schema representation for a group object within an HDF5 file.
 
@@ -144,63 +153,40 @@ class Dataset(BaseModel, extra="forbid"):
         return self
 
 
-class GroupRegistry:
-    """Registry for managing group types dynamically"""
+class MetaGroupRegistry(type):
+    def __new__(cls, clsname, superclasses, attributedict):
+        attributedict["groups"] = dict()
+        return super().__new__(cls, clsname, superclasses, attributedict)
 
-    _types: dict[str, Type[Group]] = {}
-    _union_cache = None
+    def register(cls, group):
+        if not issubclass(group, GroupBase):
+            raise TypeError("You may only register subclasses of GroupBase.")
 
-    @classmethod
-    def register(cls, group_type: Type[Group]):
-        """Register a new group type"""
-        import warnings
+        if group.__name__ in cls.groups.keys():
+            warnings.warn(
+                f"Overwriting previously registered `{group.__name__}` group of the same name.",
+                UserWarning,
+                stacklevel=2,
+            )
 
-        type_name = group_type.__name__
+        cls.groups[group.__name__] = group
 
-        # Check if type is already registered
-        if type_name in cls._types:
-            existing_type = cls._types[type_name]
-            if existing_type is not group_type:  # Different class with same name
-                warnings.warn(
-                    f"Group type '{type_name}' is already registered. "
-                    f"Overwriting {existing_type} with {group_type}.",
-                    UserWarning,
-                    stacklevel=2,
-                )
-
-        cls._types[type_name] = group_type
-        cls._union_cache = None  # Invalidate cache
-
-    @classmethod
-    def get_union(cls):
-        """Get the current Union of all registered types"""
-        if cls._union_cache is None:
-            if not cls._types:
-                raise ValueError("No group types registered")
-
-            type_list = list(cls._types.values())
-            if len(type_list) == 1:
-                cls._union_cache = type_list[0]
-            else:
-                cls._union_cache = Union[tuple(type_list)]
-
-        return cls._union_cache
-
-    @classmethod
-    def get_adapter(cls):
-        """Get TypeAdapter for current registered types"""
-        from typing import Annotated
-
-        union_type = cls.get_union()
-        return TypeAdapter(Annotated[union_type, Field(discriminator="class_")])
-
-    @classmethod
     def clear(cls):
         """Clear all registered types (useful for testing)"""
-        cls._types.clear()
-        cls._union_cache = None
+        cls.groups.clear()
 
-    @classmethod
-    def list_types(cls):
-        """List all registered type names"""
-        return list(cls._types.keys())
+    @property
+    def union(cls):
+        """Get the current Union of all registered types"""
+        return Annotated[
+            Union[tuple(cls.groups.values())], Discriminator(discriminator="class_")
+        ]
+
+    @property
+    def adapter(cls):
+        """Get TypeAdapter for current registered types"""
+        return TypeAdapter(cls.union)
+
+
+class GroupRegistry(metaclass=MetaGroupRegistry):
+    pass
