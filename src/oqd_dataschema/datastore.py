@@ -24,6 +24,12 @@ from pydantic.types import TypeVar
 
 from oqd_dataschema.base import Dataset, GroupBase, GroupRegistry
 
+########################################################################################
+
+__all__ = ["Datastore"]
+
+########################################################################################
+
 
 # %%
 class Datastore(BaseModel, extra="forbid"):
