@@ -14,7 +14,7 @@
 
 # %%
 import warnings
-from typing import Annotated, Any, Literal, Optional, Union
+from typing import Annotated, Any, ClassVar, Literal, Optional, Union
 
 import numpy as np
 from bidict import bidict
@@ -86,6 +86,19 @@ class GroupBase(BaseModel, extra="forbid"):
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
+
+        for k, v in cls.__annotations__.items():
+            if k == "class_":
+                raise AttributeError("`class_` attribute should not be set manually.")
+
+            if k == "attrs" and k is not Attrs:
+                raise TypeError("`attrs` should be of type `Attrs`")
+
+            if k not in ["class_", "attrs"] and v not in [Dataset, ClassVar]:
+                raise TypeError(
+                    "All fields of `GroupBase` have to be of type `Dataset`."
+                )
+
         cls.__annotations__["class_"] = Literal[cls.__name__]
         setattr(cls, "class_", cls.__name__)
 
