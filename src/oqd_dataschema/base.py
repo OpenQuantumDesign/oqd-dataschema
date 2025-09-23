@@ -74,15 +74,6 @@ class GroupBase(BaseModel, extra="forbid"):
         # Auto-register new group types
         GroupRegistry.register(cls)
 
-    @model_validator(mode="before")
-    @classmethod
-    def auto_assign_class(cls, data):
-        if isinstance(data, BaseModel):
-            return data
-        if isinstance(data, dict):
-            data["class_"] = cls.__name__
-        return data
-
 
 class Dataset(BaseModel, extra="forbid"):
     """
