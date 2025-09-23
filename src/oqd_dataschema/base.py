@@ -20,6 +20,7 @@ import numpy as np
 from bidict import bidict
 from pydantic import (
     BaseModel,
+    BeforeValidator,
     ConfigDict,
     Discriminator,
     Field,
@@ -32,6 +33,23 @@ from pydantic import (
 __all__ = ["GroupBase", "Dataset", "GroupRegistry"]
 
 ########################################################################################
+
+
+invalid_attrs = ["_model_signature", "_model_json"]
+
+
+def _valid_attr_key(value):
+    if value in invalid_attrs:
+        raise KeyError
+    return value
+
+
+Attrs = Optional[
+    dict[
+        Annotated[str, BeforeValidator(_valid_attr_key)],
+        Union[int, float, str, complex],
+    ]
+]
 
 
 # %%
@@ -64,7 +82,7 @@ class GroupBase(BaseModel, extra="forbid"):
         ```
     """
 
-    attrs: Optional[dict[str, Union[int, float, str, complex]]] = {}
+    attrs: Attrs = {}
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -100,7 +118,7 @@ class Dataset(BaseModel, extra="forbid"):
     shape: Optional[tuple[int, ...]] = None
     data: Optional[Any] = Field(default=None, exclude=True)
 
-    attrs: Optional[dict[str, Union[int, float, str, complex]]] = {}
+    attrs: Attrs = {}
 
     model_config = ConfigDict(arbitrary_types_allowed=True, validate_assignment=True)
 

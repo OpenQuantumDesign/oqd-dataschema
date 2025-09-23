@@ -14,15 +14,19 @@
 
 # %%
 
+import json
 import pathlib
 from typing import Any, Dict, Literal, Optional
 
 import h5py
 import numpy as np
-from pydantic import BaseModel, model_validator
+from pydantic import (
+    BaseModel,
+    field_validator,
+)
 from pydantic.types import TypeVar
 
-from oqd_dataschema.base import Dataset, GroupBase, GroupRegistry
+from oqd_dataschema.base import Attrs, Dataset, GroupBase, GroupRegistry
 
 ########################################################################################
 
@@ -44,15 +48,17 @@ class Datastore(BaseModel, extra="forbid"):
 
     groups: Dict[str, Any]
 
-    @model_validator(mode="before")
+    attrs: Attrs = {}
+
+    @field_validator("groups", mode="before")
     @classmethod
     def validate_groups(cls, data):
-        if isinstance(data, dict) and "groups" in data:
+        if isinstance(data, dict):
             # Get the current adapter from registry
             try:
                 validated_groups = {}
 
-                for key, group_data in data["groups"].items():
+                for key, group_data in data.items():
                     if isinstance(group_data, GroupBase):
                         # Already a Group instance
                         validated_groups[key] = group_data
@@ -66,7 +72,7 @@ class Datastore(BaseModel, extra="forbid"):
                             f"Invalid group data for key '{key}': {type(group_data)}"
                         )
 
-                data["groups"] = validated_groups
+                data = validated_groups
 
             except ValueError as e:
                 if "No group types registered" in str(e):
@@ -90,13 +96,17 @@ class Datastore(BaseModel, extra="forbid"):
 
         with h5py.File(filepath, mode) as f:
             # store the model JSON schema
-            f.attrs["model"] = self.model_dump_json()
+            f.attrs["_model_signature"] = self.model_dump_json()
+            for akey, attr in self.attrs.items():
+                f.attrs[akey] = attr
 
             # store each group
             for gkey, group in self.groups.items():
                 if gkey in f.keys():
                     del f[gkey]
                 h5_group = f.create_group(gkey)
+
+                h5_group.attrs["_model_schema"] = json.dumps(group.model_json_schema())
                 for akey, attr in group.attrs.items():
                     h5_group.attrs[akey] = attr
 
@@ -118,7 +128,7 @@ class Datastore(BaseModel, extra="forbid"):
             filepath (pathlib.Path): The path to the HDF5 file where the model data will be read and validated from.
         """
         with h5py.File(filepath, "r") as f:
-            self = cls.model_validate_json(f.attrs["model"])
+            self = cls.model_validate_json(f.attrs["_model_signature"])
 
             # loop through all groups in the model schema and load HDF5 store
             for gkey, group in self.groups.items():
