@@ -131,9 +131,15 @@ class Datastore(BaseModel, extra="forbid"):
             self = cls.model_validate_json(f.attrs["_model_signature"])
 
             # loop through all groups in the model schema and load HDF5 store
-            for gkey, group in self.groups.items():
-                for dkey, val in group.__dict__.items():
+            for gkey, group in self:
+                for dkey in group.__class__.model_fields:
                     if dkey in ("attrs", "class_"):
                         continue
                     group.__dict__[dkey].data = np.array(f[gkey][dkey][()])
             return self
+
+    def __getitem__(self, key):
+        return self.groups.__getitem__(key)
+
+    def __iter__(self):
+        return self.groups.items().__iter__()
