@@ -95,7 +95,7 @@ class Datastore(BaseModel, extra="forbid"):
 
         with h5py.File(filepath, mode) as f:
             # store the model JSON schema
-            f.attrs["_model_signature"] = self.model_dump_json()
+            f.attrs["_datastore_signature"] = self.model_dump_json(indent=2)
             for akey, attr in self.attrs.items():
                 f.attrs[akey] = attr
 
@@ -105,7 +105,9 @@ class Datastore(BaseModel, extra="forbid"):
                     del f[gkey]
                 h5_group = f.create_group(gkey)
 
-                h5_group.attrs["_model_schema"] = json.dumps(group.model_json_schema())
+                h5_group.attrs["_group_schema"] = json.dumps(
+                    group.model_json_schema(), indent=2
+                )
                 for akey, attr in group.attrs.items():
                     h5_group.attrs[akey] = attr
 
@@ -132,7 +134,7 @@ class Datastore(BaseModel, extra="forbid"):
             filepath (pathlib.Path): The path to the HDF5 file where the model data will be read and validated from.
         """
         with h5py.File(filepath, "r") as f:
-            self = cls.model_validate_json(f.attrs["_model_signature"])
+            self = cls.model_validate_json(f.attrs["_datastore_signature"])
 
             # loop through all groups in the model schema and load HDF5 store
             for gkey, group in self:
