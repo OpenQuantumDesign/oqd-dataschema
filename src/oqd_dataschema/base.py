@@ -165,6 +165,12 @@ class Dataset(BaseModel, extra="forbid"):
     def __getitem__(self, idx):
         return self.data[idx]
 
+    @classmethod
+    def _is_dataset_type(cls, type_):
+        return type_ == cls or (
+            typing.get_origin(type_) is Annotated and type_.__origin__ is cls
+        )
+
 
 def _constrain_dtype(dataset, *, dtype_constraint=None):
     if (not isinstance(dtype_constraint, str)) and isinstance(
@@ -261,8 +267,14 @@ class GroupBase(BaseModel, extra="forbid"):
 
             if (
                 k not in ["class_", "attrs"]
-                and v not in [Dataset, ClassVar]
-                and not (typing.get_origin(v) == Annotated and v.__origin__ is Dataset)
+                and v is not ClassVar
+                and not Dataset._is_dataset_type(v)
+                and not (typing.get_origin(v) is Annotated and v.__origin__ is Dataset)
+                and not (
+                    typing.get_origin(v) is dict
+                    and v.__args__[0] is str
+                    and Dataset._is_dataset_type(v.__args__[1])
+                )
             ):
                 raise TypeError(
                     "All fields of `GroupBase` have to be of type `Dataset`."

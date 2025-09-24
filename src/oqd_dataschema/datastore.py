@@ -82,6 +82,37 @@ class Datastore(BaseModel, extra="forbid"):
 
         return data
 
+    def _dump_group(self, h5datastore, gkey, group):
+        if gkey in h5datastore.keys():
+            del h5datastore[gkey]
+        h5_group = h5datastore.create_group(gkey)
+
+        h5_group.attrs["_group_schema"] = json.dumps(
+            group.model_json_schema(), indent=2
+        )
+        for akey, attr in group.attrs.items():
+            h5_group.attrs[akey] = attr
+
+        for dkey, dataset in group.__dict__.items():
+            if isinstance(dataset, dict):
+                h5_subgroup = h5_group.create_group(dkey)
+                for ddkey, ddataset in dataset.items():
+                    self._dump_dataset(h5_subgroup, ddkey, ddataset)
+
+            self._dump_dataset(h5_group, dkey, dataset)
+
+    def _dump_dataset(self, h5group, dkey, dataset):
+        if isinstance(dataset, Dataset):
+            if dataset.dtype in "str":
+                h5_dataset = h5group.create_dataset(
+                    dkey, data=dataset.data.astype(np.dtypes.BytesDType)
+                )
+            else:
+                h5_dataset = h5group.create_dataset(dkey, data=dataset.data)
+
+            for akey, attr in dataset.attrs.items():
+                h5_dataset.attrs[akey] = attr
+
     def model_dump_hdf5(self, filepath: pathlib.Path, mode: Literal["w", "a"] = "w"):
         """
         Saves the model and its associated data to an HDF5 file.
@@ -101,29 +132,7 @@ class Datastore(BaseModel, extra="forbid"):
 
             # store each group
             for gkey, group in self.groups.items():
-                if gkey in f.keys():
-                    del f[gkey]
-                h5_group = f.create_group(gkey)
-
-                h5_group.attrs["_group_schema"] = json.dumps(
-                    group.model_json_schema(), indent=2
-                )
-                for akey, attr in group.attrs.items():
-                    h5_group.attrs[akey] = attr
-
-                for dkey, dataset in group.__dict__.items():
-                    if not isinstance(dataset, Dataset):
-                        continue
-
-                    if dataset.dtype in "str":
-                        h5_dataset = h5_group.create_dataset(
-                            dkey, data=dataset.data.astype(np.dtypes.BytesDType)
-                        )
-                    else:
-                        h5_dataset = h5_group.create_dataset(dkey, data=dataset.data)
-
-                    for akey, attr in dataset.attrs.items():
-                        h5_dataset.attrs[akey] = attr
+                self._dump_group(f, gkey, group)
 
     @classmethod
     def model_validate_hdf5(cls, filepath: pathlib.Path):
@@ -141,9 +150,20 @@ class Datastore(BaseModel, extra="forbid"):
                 for dkey in group.__class__.model_fields:
                     if dkey in ("attrs", "class_"):
                         continue
-                    group.__dict__[dkey].data = np.array(f[gkey][dkey][()]).astype(
-                        DTypes.get(group.__dict__[dkey].dtype).value
-                    )
+
+                    if isinstance(group.__dict__[dkey], Dataset):
+                        group.__dict__[dkey].data = np.array(f[gkey][dkey][()]).astype(
+                            DTypes.get(group.__dict__[dkey].dtype).value
+                        )
+
+                    if isinstance(group.__dict__[dkey], dict):
+                        for ddkey in group.__dict__[dkey]:
+                            group.__dict__[dkey][ddkey].data = np.array(
+                                f[gkey][dkey][ddkey][()]
+                            ).astype(
+                                DTypes.get(group.__dict__[dkey][ddkey].dtype).value
+                            )
+
             return self
 
     def __getitem__(self, key):
