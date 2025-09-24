@@ -33,7 +33,7 @@ from pydantic import (
 
 ########################################################################################
 
-__all__ = ["GroupBase", "Dataset", "GroupRegistry", "condataset"]
+__all__ = ["GroupBase", "Dataset", "GroupRegistry", "condataset", "CastDataset"]
 
 ########################################################################################
 
@@ -116,6 +116,12 @@ class Dataset(BaseModel, extra="forbid"):
     model_config = ConfigDict(
         use_enum_values=False, arbitrary_types_allowed=True, validate_assignment=True
     )
+
+    @classmethod
+    def cast(cls, data):
+        if isinstance(data, np.ndarray):
+            return cls(data=data)
+        return data
 
     @model_validator(mode="before")
     @classmethod
@@ -212,10 +218,14 @@ def condataset(
 ):
     return Annotated[
         Dataset,
+        BeforeValidator(Dataset.cast),
         AfterValidator(partial(_constrain_dtype, dtype_constraint=dtype_constraint)),
         AfterValidator(partial(_constraint_dim, min_dim=min_dim, max_dim=max_dim)),
         AfterValidator(partial(_constraint_shape, shape_constraint=shape_constraint)),
     ]
+
+
+CastDataset = Annotated[Dataset, BeforeValidator(Dataset.cast)]
 
 
 ########################################################################################

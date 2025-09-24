@@ -33,4 +33,5 @@ __all__ = [
     "OQDTestbenchDataGroup",
     "SinaraRawDataGroup",
     "condataset",
+    "CastDataset",
 ]

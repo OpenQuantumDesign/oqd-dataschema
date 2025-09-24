@@ -13,7 +13,7 @@
 # limitations under the License.
 
 
-from oqd_dataschema.base import Dataset, GroupBase
+from oqd_dataschema.base import CastDataset, GroupBase
 
 ########################################################################################
 
@@ -33,7 +33,7 @@ class SinaraRawDataGroup(GroupBase):
     This is a placeholder for demonstration and development.
     """
 
-    camera_images: Dataset
+    camera_images: CastDataset
 
 
 class MeasurementOutcomesDataGroup(GroupBase):
@@ -42,7 +42,7 @@ class MeasurementOutcomesDataGroup(GroupBase):
     This is a placeholder for demonstration and development.
     """
 
-    outcomes: Dataset
+    outcomes: CastDataset
 
 
 class ExpectationValueDataGroup(GroupBase):
@@ -51,11 +51,11 @@ class ExpectationValueDataGroup(GroupBase):
     This is a placeholder for demonstration and development.
     """
 
-    expectation_value: Dataset
+    expectation_value: CastDataset
 
 
 class OQDTestbenchDataGroup(GroupBase):
     """ """
 
-    time: Dataset
-    voltages: Dataset
+    time: CastDataset
+    voltages: CastDataset
