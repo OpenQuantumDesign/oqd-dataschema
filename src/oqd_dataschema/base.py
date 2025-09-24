@@ -64,7 +64,7 @@ dtype_map = bidict(
         "float64": np.dtypes.Float64DType,
         "complex64": np.dtypes.Complex64DType,
         "complex128": np.dtypes.Complex128DType,
-        "string": np.dtypes.StrDType,
+        "str": np.dtypes.StrDType,
         "bytes": np.dtypes.BytesDType,
         "bool": np.dtypes.BoolDType,
     }

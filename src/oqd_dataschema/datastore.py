@@ -26,7 +26,7 @@ from pydantic import (
 )
 from pydantic.types import TypeVar
 
-from oqd_dataschema.base import Attrs, Dataset, GroupBase, GroupRegistry
+from oqd_dataschema.base import Attrs, Dataset, GroupBase, GroupRegistry, dtype_map
 
 ########################################################################################
 
@@ -113,7 +113,12 @@ class Datastore(BaseModel, extra="forbid"):
                 for dkey, dataset in group.__dict__.items():
                     if not isinstance(dataset, Dataset):
                         continue
-                    h5_dataset = h5_group.create_dataset(dkey, data=dataset.data)
+                    h5_dataset = h5_group.create_dataset(
+                        dkey,
+                        data=dataset.data.astype(np.dtypes.BytesDType)
+                        if dataset.dtype == "str"
+                        else dataset.data,
+                    )
                     for akey, attr in dataset.attrs.items():
                         h5_dataset.attrs[akey] = attr
 
@@ -135,7 +140,9 @@ class Datastore(BaseModel, extra="forbid"):
                 for dkey in group.__class__.model_fields:
                     if dkey in ("attrs", "class_"):
                         continue
-                    group.__dict__[dkey].data = np.array(f[gkey][dkey][()])
+                    group.__dict__[dkey].data = np.array(f[gkey][dkey][()]).astype(
+                        dtype_map[group.__dict__[dkey].dtype]
+                    )
             return self
 
     def __getitem__(self, key):
