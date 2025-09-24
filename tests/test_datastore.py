@@ -18,7 +18,7 @@ import pathlib
 import numpy as np
 import pytest
 
-from oqd_dataschema.base import Dataset, mapping
+from oqd_dataschema.base import Dataset, DTypes
 from oqd_dataschema.datastore import Datastore
 from oqd_dataschema.groups import (
     SinaraRawDataGroup,
@@ -47,7 +47,10 @@ def test_serialize_deserialize(dtype):
 
     data_reload = Datastore.model_validate_hdf5(filepath)
 
-    assert data_reload.groups["test"].camera_images.data.dtype == mapping[dtype]
+    assert (
+        type(data_reload.groups["test"].camera_images.data.dtype)
+        is DTypes.get(dtype).value
+    )
 
 
 # %%

@@ -16,7 +16,7 @@
 
 import json
 import pathlib
-from typing import Any, Dict, Literal, Optional
+from typing import Any, Dict, Literal
 
 import h5py
 import numpy as np
@@ -24,9 +24,8 @@ from pydantic import (
     BaseModel,
     field_validator,
 )
-from pydantic.types import TypeVar
 
-from oqd_dataschema.base import Attrs, Dataset, GroupBase, GroupRegistry, dtype_map
+from oqd_dataschema.base import Attrs, Dataset, DTypes, GroupBase, GroupRegistry
 
 ########################################################################################
 
@@ -83,7 +82,7 @@ class Datastore(BaseModel, extra="forbid"):
 
         return data
 
-    def model_dump_hdf5(self, filepath: pathlib.Path, mode: Literal["w", "a"] = "a"):
+    def model_dump_hdf5(self, filepath: pathlib.Path, mode: Literal["w", "a"] = "w"):
         """
         Saves the model and its associated data to an HDF5 file.
         This method serializes the model's data and attributes into an HDF5 file
@@ -113,19 +112,19 @@ class Datastore(BaseModel, extra="forbid"):
                 for dkey, dataset in group.__dict__.items():
                     if not isinstance(dataset, Dataset):
                         continue
-                    h5_dataset = h5_group.create_dataset(
-                        dkey,
-                        data=dataset.data.astype(np.dtypes.BytesDType)
-                        if dataset.dtype == "str"
-                        else dataset.data,
-                    )
+
+                    if dataset.dtype in "str":
+                        h5_dataset = h5_group.create_dataset(
+                            dkey, data=dataset.data.astype(np.dtypes.BytesDType)
+                        )
+                    else:
+                        h5_dataset = h5_group.create_dataset(dkey, data=dataset.data)
+
                     for akey, attr in dataset.attrs.items():
                         h5_dataset.attrs[akey] = attr
 
     @classmethod
-    def model_validate_hdf5(
-        cls, filepath: pathlib.Path, types: Optional[TypeVar] = None
-    ):
+    def model_validate_hdf5(cls, filepath: pathlib.Path):
         """
         Loads the model from an HDF5 file at the specified filepath.
 
@@ -141,7 +140,7 @@ class Datastore(BaseModel, extra="forbid"):
                     if dkey in ("attrs", "class_"):
                         continue
                     group.__dict__[dkey].data = np.array(f[gkey][dkey][()]).astype(
-                        dtype_map[group.__dict__[dkey].dtype]
+                        DTypes.get(group.__dict__[dkey].dtype).value
                     )
             return self
 

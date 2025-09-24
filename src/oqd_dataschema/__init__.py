@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .base import Dataset, GroupBase, GroupRegistry
+from .base import Dataset, GroupBase, GroupRegistry, condataset
 from .datastore import Datastore
 from .groups import (
     ExpectationValueDataGroup,
@@ -32,4 +32,5 @@ __all__ = [
     "MeasurementOutcomesDataGroup",
     "OQDTestbenchDataGroup",
     "SinaraRawDataGroup",
+    "condataset",
 ]
