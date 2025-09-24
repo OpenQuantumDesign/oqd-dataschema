@@ -41,6 +41,7 @@ invalid_attrs = ["_model_signature", "_model_json"]
 def _valid_attr_key(value):
     if value in invalid_attrs:
         raise KeyError
+
     return value
 
 
@@ -53,15 +54,19 @@ Attrs = Optional[
 
 
 # %%
-mapping = bidict(
+dtype_map = bidict(
     {
-        "int32": np.dtype("int32"),
-        "int64": np.dtype("int64"),
-        "float32": np.dtype("float32"),
-        "float64": np.dtype("float64"),
-        "complex64": np.dtype("complex64"),
-        "complex128": np.dtype("complex128"),
-        # 'string': np.type
+        "int16": np.dtypes.Int16DType,
+        "int32": np.dtypes.Int32DType,
+        "int64": np.dtypes.Int64DType,
+        "float16": np.dtypes.Float16DType,
+        "float32": np.dtypes.Float32DType,
+        "float64": np.dtypes.Float64DType,
+        "complex64": np.dtypes.Complex64DType,
+        "complex128": np.dtypes.Complex128DType,
+        "string": np.dtypes.StrDType,
+        "bytes": np.dtypes.BytesDType,
+        "bool": np.dtypes.BoolDType,
     }
 )
 
@@ -127,7 +132,7 @@ class Dataset(BaseModel, extra="forbid"):
         ```
     """
 
-    dtype: Optional[Literal[tuple(mapping.keys())]] = None
+    dtype: Optional[Literal[tuple(dtype_map.keys())]] = None
     shape: Optional[tuple[int, ...]] = None
     data: Optional[Any] = Field(default=None, exclude=True)
 
@@ -149,12 +154,12 @@ class Dataset(BaseModel, extra="forbid"):
             if not isinstance(data, np.ndarray):
                 raise TypeError("`data` must be a numpy.ndarray.")
 
-            if data.dtype not in mapping.values():
+            if type(data.dtype) not in dtype_map.values():
                 raise TypeError(
-                    f"`data` must be a numpy array of dtype in {tuple(mapping.keys())}."
+                    f"`data` must be a numpy array of dtype in {tuple(dtype_map.keys())}."
                 )
 
-            values["dtype"] = mapping.inverse[data.dtype]
+            values["dtype"] = dtype_map.inverse[type(data.dtype)]
             values["shape"] = data.shape
 
         return values
@@ -163,8 +168,8 @@ class Dataset(BaseModel, extra="forbid"):
     def validate_data_matches_shape_dtype(self):
         """Ensure that `data` matches `dtype` and `shape`."""
         if self.data is not None:
-            expected_dtype = mapping[self.dtype]
-            if self.data.dtype != expected_dtype:
+            expected_dtype = dtype_map[self.dtype]
+            if type(self.data.dtype) is not expected_dtype:
                 raise ValueError(
                     f"Expected data dtype `{self.dtype}`, but got `{self.data.dtype.name}`."
                 )
