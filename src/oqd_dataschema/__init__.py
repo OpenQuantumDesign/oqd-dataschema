@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .base import Dataset, GroupBase, GroupRegistry, condataset
+from .base import CastDataset, Dataset, GroupBase, GroupRegistry, condataset
 from .datastore import Datastore
 from .groups import (
     ExpectationValueDataGroup,
@@ -24,6 +24,7 @@ from .groups import (
 ########################################################################################
 
 __all__ = [
+    "CastDataset",
     "Dataset",
     "Datastore",
     "GroupBase",
