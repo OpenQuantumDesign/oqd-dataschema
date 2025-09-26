@@ -23,6 +23,7 @@ __all__ = ["_flex_shape_equal", "_validator_from_condition"]
 
 
 def _flex_shape_equal(shape1, shape2):
+    """Helper function for comparing concrete and flex shapes."""
     return len(shape1) == len(shape2) and reduce(
         lambda x, y: x and y,
         map(
@@ -33,6 +34,8 @@ def _flex_shape_equal(shape1, shape2):
 
 
 def _validator_from_condition(f):
+    """Helper decorator for turning a condition into a validation."""
+
     def _wrapped_validator(*args, **kwargs):
         def _wrapped_condition(model):
             f(model, *args, **kwargs)
