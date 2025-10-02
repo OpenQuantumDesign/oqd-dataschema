@@ -194,19 +194,21 @@ class Datastore(BaseModel, extra="forbid"):
         """Overloads iter to iterate over elements in groups."""
         return self.groups.items().__iter__()
 
-    def add(self, **groups):
-        """Adds a new groups to the datastore."""
-        for k, v in groups.items():
-            if k in self.groups.keys():
-                raise ValueError(
-                    "Key already exist in the datastore, use `update` instead if intending to overwrite past data."
-                )
-            self.groups[k] = v
-
     def update(self, **groups):
         """Updates groups in the datastore, overwriting past values."""
         for k, v in groups.items():
             self.groups[k] = v
+
+    def add(self, **groups):
+        """Adds a new groups to the datastore."""
+
+        existing_keys = set(groups.keys()).intersection(set(self.groups.keys()))
+        if existing_keys:
+            raise ValueError(
+                f"Keys {existing_keys} already exist in the datastore, use `update` instead if intending to overwrite past data."
+            )
+
+        self.update(**groups)
 
 
 # %%
