@@ -37,12 +37,11 @@ __all__ = ["Datastore"]
 # %%
 class Datastore(BaseModel, extra="forbid"):
     """
-    Saves the model and its associated data to an HDF5 file.
-    This method serializes the model's data and attributes into an HDF5 file
-    at the specified filepath.
+    Class representing a datastore with restricted HDF5 format.
 
     Attributes:
-        filepath (pathlib.Path): The path to the HDF5 file where the model data will be saved.
+        groups (Dict[str,Group]): groups of data.
+        attrs (Attrs): attributes of the datastore.
     """
 
     groups: Dict[str, Any]
@@ -51,6 +50,7 @@ class Datastore(BaseModel, extra="forbid"):
 
     @classmethod
     def _validate_group(cls, key, group):
+        """Helper function for validating group to be of type Group registered in the GroupRegistry."""
         if isinstance(group, GroupBase):
             return group
 
@@ -62,6 +62,7 @@ class Datastore(BaseModel, extra="forbid"):
     @field_validator("groups", mode="before")
     @classmethod
     def validate_groups(cls, data):
+        """Validates groups to be of type Group registered in the GroupRegistry."""
         if GroupRegistry.groups == {}:
             raise ValueError(
                 "No group types available. Register group types before creating Datastore."
@@ -71,6 +72,7 @@ class Datastore(BaseModel, extra="forbid"):
         return validated_groups
 
     def _dump_group(self, h5datastore, gkey, group):
+        """Helper function for dumping Group."""
         # remove existing group
         if gkey in h5datastore.keys():
             del h5datastore[gkey]
@@ -89,15 +91,20 @@ class Datastore(BaseModel, extra="forbid"):
 
         # dump group data
         for dkey, dataset in group.__dict__.items():
+            if dkey in ["attr", "class_"]:
+                continue
+
             # if group field contain dictionary of Dataset
             if isinstance(dataset, dict):
                 h5_subgroup = h5_group.create_group(dkey)
                 for ddkey, ddataset in dataset.items():
                     self._dump_dataset(h5_subgroup, ddkey, ddataset)
-            else:
-                self._dump_dataset(h5_group, dkey, dataset)
+                continue
+
+            self._dump_dataset(h5_group, dkey, dataset)
 
     def _dump_dataset(self, h5group, dkey, dataset):
+        """Helper function for dumping Dataset."""
         if not isinstance(dataset, Dataset):
             raise ValueError("Group data field is not a Dataset.")
 
@@ -132,6 +139,9 @@ class Datastore(BaseModel, extra="forbid"):
 
             # dump each group
             for gkey, group in self.groups.items():
+                if gkey in ["attr", "class_"]:
+                    continue
+
                 self._dump_group(f, gkey, group)
 
     @classmethod
@@ -177,7 +187,26 @@ class Datastore(BaseModel, extra="forbid"):
             return self
 
     def __getitem__(self, key):
+        """Overloads indexing to retrieve elements in groups."""
         return self.groups.__getitem__(key)
 
     def __iter__(self):
+        """Overloads iter to iterate over elements in groups."""
         return self.groups.items().__iter__()
+
+    def add(self, **groups):
+        """Adds a new groups to the datastore."""
+        for k, v in groups.items():
+            if k in self.groups.keys():
+                raise ValueError(
+                    "Key already exist in the datastore, use `update` instead if intending to overwrite past data."
+                )
+            self.groups[k] = v
+
+    def update(self, **groups):
+        """Updates groups in the datastore, overwriting past values."""
+        for k, v in groups.items():
+            self.groups[k] = v
+
+
+# %%

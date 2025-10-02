@@ -189,6 +189,7 @@ CastDataset = Annotated[Dataset, BeforeValidator(Dataset.cast)]
 
 @_validator_from_condition
 def _constrain_dtype(dataset, *, dtype_constraint=None):
+    """Constrains the dtype of a dataset"""
     if (not isinstance(dtype_constraint, str)) and isinstance(
         dtype_constraint, Sequence
     ):
@@ -204,6 +205,7 @@ def _constrain_dtype(dataset, *, dtype_constraint=None):
 
 @_validator_from_condition
 def _constraint_dim(dataset, *, min_dim=None, max_dim=None):
+    """Constrains the dimension of a dataset"""
     if min_dim is not None and max_dim is not None and min_dim > max_dim:
         raise ValueError("Impossible to satisfy dimension constraints on dataset.")
 
@@ -219,6 +221,7 @@ def _constraint_dim(dataset, *, min_dim=None, max_dim=None):
 
 @_validator_from_condition
 def _constraint_shape(dataset, *, shape_constraint=None):
+    """Constrains the shape of a dataset"""
     if shape_constraint and not _flex_shape_equal(shape_constraint, dataset.shape):
         raise ValueError(
             f"Expected shape to be {shape_constraint}, but got {dataset.shape}."
@@ -228,6 +231,7 @@ def _constraint_shape(dataset, *, shape_constraint=None):
 def condataset(
     *, shape_constraint=None, dtype_constraint=None, min_dim=None, max_dim=None
 ):
+    """Implements dtype, dimension and shape constrains on the dataset."""
     return Annotated[
         CastDataset,
         AfterValidator(_constrain_dtype(dtype_constraint=dtype_constraint)),
@@ -312,11 +316,16 @@ class GroupBase(BaseModel, extra="forbid"):
 
 
 class MetaGroupRegistry(type):
+    """
+    Metaclass for the GroupRegistry
+    """
+
     def __new__(cls, clsname, superclasses, attributedict):
         attributedict["groups"] = dict()
         return super().__new__(cls, clsname, superclasses, attributedict)
 
     def register(cls, group):
+        """Registers a group into the GroupRegistry."""
         if not issubclass(group, GroupBase):
             raise TypeError("You may only register subclasses of GroupBase.")
 
@@ -347,6 +356,10 @@ class MetaGroupRegistry(type):
 
 
 class GroupRegistry(metaclass=MetaGroupRegistry):
+    """
+    Represents the GroupRegistry
+    """
+
     pass
 
 
