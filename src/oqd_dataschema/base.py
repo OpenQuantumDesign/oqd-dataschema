@@ -69,7 +69,7 @@ class DTypes(Enum):
 
 ########################################################################################
 
-invalid_attrs = ["_datastore_signature", "_group_json"]
+invalid_attrs = ["_datastore_signature", "_group_schema"]
 
 
 def _valid_attr_key(value):
