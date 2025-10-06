@@ -25,6 +25,7 @@ from pydantic import (
 
 from oqd_dataschema.base import Attrs
 from oqd_dataschema.dataset import CastDataset, Dataset
+from oqd_dataschema.folder import Folder
 from oqd_dataschema.table import Table
 
 ########################################################################################
@@ -62,7 +63,11 @@ class GroupBase(BaseModel, extra="forbid"):
 
     @staticmethod
     def _is_datafield_type(v):
-        return Dataset._is_dataset_type(v) or Table._is_table_type(v)
+        return (
+            Dataset._is_dataset_type(v)
+            or Table._is_table_type(v)
+            or Folder._is_folder_type(v)
+        )
 
     @classmethod
     def _is_allowed_field_type(cls, v):
@@ -108,7 +113,7 @@ class GroupBase(BaseModel, extra="forbid"):
 
             if not cls._is_allowed_field_type(v):
                 raise TypeError(
-                    "All fields of `GroupBase` have to be of type `Dataset` or `Table`."
+                    "All fields of `GroupBase` have to be of type `Dataset`, `Table` or `Folder`."
                 )
 
         cls.__annotations__["class_"] = Literal[cls.__name__]
