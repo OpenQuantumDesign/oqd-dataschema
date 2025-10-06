@@ -44,7 +44,7 @@ class Datastore(BaseModel, extra="forbid"):
         attrs (Attrs): attributes of the datastore.
     """
 
-    groups: Dict[str, Any]
+    groups: Dict[str, Any] = {}
 
     attrs: Attrs = {}
 
@@ -91,7 +91,7 @@ class Datastore(BaseModel, extra="forbid"):
 
         # dump group data
         for dkey, dataset in group.__dict__.items():
-            if dkey in ["attr", "class_"]:
+            if dkey in ["attrs", "class_"]:
                 continue
 
             # if group field contain dictionary of Dataset
@@ -105,8 +105,14 @@ class Datastore(BaseModel, extra="forbid"):
 
     def _dump_dataset(self, h5group, dkey, dataset):
         """Helper function for dumping Dataset."""
-        if not isinstance(dataset, Dataset):
+
+        if dataset is not None and not isinstance(dataset, Dataset):
             raise ValueError("Group data field is not a Dataset.")
+
+        # handle optional dataset
+        if dataset is None:
+            h5_dataset = h5group.create_dataset(dkey, data=h5py.Empty("f"))
+            return
 
         # dtype str converted to bytes when dumped (h5 compatibility)
         if dataset.dtype in "str":
@@ -139,7 +145,7 @@ class Datastore(BaseModel, extra="forbid"):
 
             # dump each group
             for gkey, group in self.groups.items():
-                if gkey in ["attr", "class_"]:
+                if gkey in ["attrs", "class_"]:
                     continue
 
                 self._dump_group(f, gkey, group)
@@ -161,6 +167,9 @@ class Datastore(BaseModel, extra="forbid"):
                 for dkey in group.__class__.model_fields:
                     # ignore attrs and class_ fields
                     if dkey in ("attrs", "class_"):
+                        continue
+
+                    if group.__dict__[dkey] is None:
                         continue
 
                     # load Dataset data
