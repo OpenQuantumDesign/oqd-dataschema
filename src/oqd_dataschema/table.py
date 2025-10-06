@@ -20,7 +20,6 @@ from typing import Annotated, Any, List, Literal, Optional, Tuple, Union
 import numpy as np
 import pandas as pd
 from pydantic import (
-    AfterValidator,
     BaseModel,
     BeforeValidator,
     ConfigDict,
@@ -30,15 +29,16 @@ from pydantic import (
 )
 
 from oqd_dataschema.base import Attrs, DTypes
-from oqd_dataschema.dataset import _constraint_dim, _constraint_shape
-from oqd_dataschema.utils import _flex_shape_equal, _is_list_unique
+from oqd_dataschema.utils import (
+    _flex_shape_equal,
+    _is_list_unique,
+)
 
 ########################################################################################
 
 __all__ = [
     "Table",
     "CastTable",
-    "contable",
 ]
 
 ########################################################################################
@@ -189,14 +189,3 @@ class Table(BaseModel, extra="forbid"):
 
 
 CastTable = Annotated[Table, BeforeValidator(Table.cast)]
-
-########################################################################################
-
-
-def contable(*, shape_constraint=None, min_dim=None, max_dim=None):
-    """Implements dtype, dimension and shape constrains on the Table."""
-    return Annotated[
-        Table,
-        AfterValidator(_constraint_dim(min_dim=min_dim, max_dim=max_dim)),
-        AfterValidator(_constraint_shape(shape_constraint=shape_constraint)),
-    ]

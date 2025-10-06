@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .dataset import CastDataset, Dataset, condataset
+from .constrained import condataset, contable
+from .dataset import CastDataset, Dataset
 from .datastore import Datastore
 from .group import (
     ExpectationValueDataGroup,
@@ -22,13 +23,11 @@ from .group import (
     OQDTestbenchDataGroup,
     SinaraRawDataGroup,
 )
-from .table import Table, contable
+from .table import CastTable, Table
 
 ########################################################################################
 
 __all__ = [
-    "CastDataset",
-    "Dataset",
     "Datastore",
     "GroupBase",
     "GroupRegistry",
@@ -36,8 +35,10 @@ __all__ = [
     "MeasurementOutcomesDataGroup",
     "OQDTestbenchDataGroup",
     "SinaraRawDataGroup",
-    "condataset",
+    "Dataset",
     "CastDataset",
+    "condataset",
     "Table",
+    "CastTable",
     "contable",
 ]

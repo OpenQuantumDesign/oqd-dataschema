@@ -14,11 +14,10 @@
 
 # %%
 import typing
-from typing import Annotated, Any, Literal, Optional, Sequence, Tuple, Union
+from typing import Annotated, Any, Literal, Optional, Tuple, Union
 
 import numpy as np
 from pydantic import (
-    AfterValidator,
     BaseModel,
     BeforeValidator,
     ConfigDict,
@@ -29,14 +28,13 @@ from pydantic import (
 
 from oqd_dataschema.base import Attrs, DTypes
 
-from .utils import _flex_shape_equal, _validator_from_condition
+from .utils import _flex_shape_equal
 
 ########################################################################################
 
 __all__ = [
     "Dataset",
     "CastDataset",
-    "condataset",
 ]
 
 ########################################################################################
@@ -136,59 +134,3 @@ class Dataset(BaseModel, extra="forbid"):
 
 
 CastDataset = Annotated[Dataset, BeforeValidator(Dataset.cast)]
-
-
-########################################################################################
-
-
-@_validator_from_condition
-def _constrain_dtype(dataset, *, dtype_constraint=None):
-    """Constrains the dtype of a dataset"""
-    if (not isinstance(dtype_constraint, str)) and isinstance(
-        dtype_constraint, Sequence
-    ):
-        dtype_constraint = set(dtype_constraint)
-    elif isinstance(dtype_constraint, str):
-        dtype_constraint = {dtype_constraint}
-
-    if dtype_constraint and dataset.dtype not in dtype_constraint:
-        raise ValueError(
-            f"Expected dtype to be of type one of {dtype_constraint}, but got {dataset.dtype}."
-        )
-
-
-@_validator_from_condition
-def _constraint_dim(dataset, *, min_dim=None, max_dim=None):
-    """Constrains the dimension of a dataset"""
-    if min_dim is not None and max_dim is not None and min_dim > max_dim:
-        raise ValueError("Impossible to satisfy dimension constraints on dataset.")
-
-    min_dim = 0 if min_dim is None else min_dim
-
-    dims = len(dataset.shape)
-
-    if dims < min_dim or (max_dim is not None and dims > max_dim):
-        raise ValueError(
-            f"Expected {min_dim} <= dimension of shape{f' <= {max_dim}'}, but got shape = {dataset.shape}."
-        )
-
-
-@_validator_from_condition
-def _constraint_shape(dataset, *, shape_constraint=None):
-    """Constrains the shape of a dataset"""
-    if shape_constraint and not _flex_shape_equal(shape_constraint, dataset.shape):
-        raise ValueError(
-            f"Expected shape to be {shape_constraint}, but got {dataset.shape}."
-        )
-
-
-def condataset(
-    *, shape_constraint=None, dtype_constraint=None, min_dim=None, max_dim=None
-):
-    """Implements dtype, dimension and shape constrains on the Dataset."""
-    return Annotated[
-        CastDataset,
-        AfterValidator(_constrain_dtype(dtype_constraint=dtype_constraint)),
-        AfterValidator(_constraint_dim(min_dim=min_dim, max_dim=max_dim)),
-        AfterValidator(_constraint_shape(shape_constraint=shape_constraint)),
-    ]
