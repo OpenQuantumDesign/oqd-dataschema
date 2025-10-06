@@ -18,6 +18,7 @@ from types import MappingProxyType
 from typing import Annotated, Any, List, Literal, Optional, Tuple, Union
 
 import numpy as np
+import pandas as pd
 from pydantic import (
     AfterValidator,
     BaseModel,
@@ -68,6 +69,41 @@ class Table(BaseModel, extra="forbid"):
 
         return value
 
+    @property
+    def pd(self):
+        if len(self.shape) > 1:
+            raise ValueError(
+                "Conversion to pandas DataFrame only supported on 1D Table."
+            )
+        return pd.DataFrame(
+            data=self.data, columns=[c[0] for c in self.columns]
+        ).astype({k: v for k, v in self.columns})
+
+    @staticmethod
+    def _pd_to_np(df):
+        np_dtype = []
+        for k, v in df.dtypes.items():
+            if type(v) is not np.dtypes.ObjectDType:
+                field_np_dtype = (k, v)
+                np_dtype.append(field_np_dtype)
+                continue
+
+            # Check if column of object dtype is actually str dtype
+            if (np.vectorize(lambda x: isinstance(x, str))(df[k].to_numpy())).all():
+                dt = df[k].to_numpy().astype(np.dtypes.StrDType).dtype
+                field_np_dtype = (k, dt)
+
+                np_dtype.append(field_np_dtype)
+                continue
+
+            raise ValueError(f"Unsupported datatype for column {k}")
+
+        return np.rec.fromarrays(
+            df.to_numpy().transpose(),
+            names=[dt[0] for dt in np_dtype],
+            formats=[dt[1] for dt in np_dtype],
+        ).astype(np.dtype(np_dtype))
+
     @field_validator("data", mode="before")
     @classmethod
     def validate_and_update(cls, value):
@@ -76,8 +112,11 @@ class Table(BaseModel, extra="forbid"):
             return value
 
         # check if data is a numpy array
-        if not isinstance(value, np.ndarray):
-            raise TypeError("`data` must be a numpy.ndarray.")
+        if not isinstance(value, (np.ndarray, pd.DataFrame)):
+            raise TypeError("`data` must be a numpy.ndarray or pandas.DataFrame.")
+
+        if isinstance(value, pd.DataFrame):
+            value = cls._pd_to_np(value)
 
         if not isinstance(value.dtype.fields, MappingProxyType):
             raise TypeError("dtype of data must be a structured dtype.")
@@ -127,6 +166,9 @@ class Table(BaseModel, extra="forbid"):
 
     @classmethod
     def cast(cls, data):
+        if isinstance(data, pd.DataFrame):
+            data = cls._pd_to_np(data)
+
         if isinstance(data, np.ndarray):
             if not isinstance(data.dtype.fields, MappingProxyType):
                 raise TypeError("dtype of data must be a structured dtype.")
