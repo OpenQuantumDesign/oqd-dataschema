@@ -18,7 +18,8 @@ import numpy as np
 import pytest
 from pydantic import TypeAdapter
 
-from oqd_dataschema.base import CastDataset, Dataset, DTypes, condataset
+from oqd_dataschema import CastDataset, Dataset, condataset
+from oqd_dataschema.base import DTypes
 
 ########################################################################################
 

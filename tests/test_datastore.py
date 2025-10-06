@@ -19,8 +19,7 @@ from typing import Dict, Optional
 import numpy as np
 import pytest
 
-from oqd_dataschema import Datastore, GroupBase
-from oqd_dataschema.base import Dataset
+from oqd_dataschema import Dataset, Datastore, GroupBase
 
 # %%
 

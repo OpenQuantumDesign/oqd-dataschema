@@ -16,7 +16,7 @@ from functools import reduce
 
 ########################################################################################
 
-__all__ = ["_flex_shape_equal", "_validator_from_condition"]
+__all__ = ["_flex_shape_equal", "_validator_from_condition", "_is_list_unique"]
 
 
 ########################################################################################
@@ -44,3 +44,19 @@ def _validator_from_condition(f):
         return _wrapped_condition
 
     return _wrapped_validator
+
+
+def _is_list_unique(data):
+    seen = set()
+    duplicates = set()
+    for element in data:
+        if element in duplicates:
+            continue
+
+        if element in seen:
+            duplicates.add(element)
+            continue
+
+        seen.add(element)
+
+    return (duplicates == set(), duplicates)

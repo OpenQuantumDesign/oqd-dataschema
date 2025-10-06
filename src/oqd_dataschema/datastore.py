@@ -25,7 +25,10 @@ from pydantic import (
     field_validator,
 )
 
-from oqd_dataschema.base import Attrs, Dataset, DTypes, GroupBase, GroupRegistry
+from oqd_dataschema.base import Attrs, DTypes
+from oqd_dataschema.dataset import Dataset
+from oqd_dataschema.group import GroupBase, GroupRegistry
+from oqd_dataschema.table import Table
 
 ########################################################################################
 
@@ -106,21 +109,45 @@ class Datastore(BaseModel, extra="forbid"):
     def _dump_dataset(self, h5group, dkey, dataset):
         """Helper function for dumping Dataset."""
 
-        if dataset is not None and not isinstance(dataset, Dataset):
-            raise ValueError("Group data field is not a Dataset.")
+        if (
+            dataset is not None
+            and not isinstance(dataset, Dataset)
+            and not isinstance(dataset, Table)
+        ):
+            raise ValueError("Group data field is not a Dataset or a Table.")
 
         # handle optional dataset
         if dataset is None:
             h5_dataset = h5group.create_dataset(dkey, data=h5py.Empty("f"))
             return
 
-        # dtype str converted to bytes when dumped (h5 compatibility)
-        if dataset.dtype in "str":
-            h5_dataset = h5group.create_dataset(
-                dkey, data=dataset.data.astype(np.dtypes.BytesDType)
+        if isinstance(dataset, Dataset):
+            # dtype str converted to bytes when dumped (h5 compatibility)
+            np_dtype = (
+                np.dtypes.BytesDType
+                if dataset.dtype == "str"
+                else DTypes.get(dataset.dtype).value
             )
-        else:
-            h5_dataset = h5group.create_dataset(dkey, data=dataset.data)
+
+            h5_dataset = h5group.create_dataset(
+                dkey, data=dataset.data.astype(np_dtype)
+            )
+
+        if isinstance(dataset, Table):
+            # dtype str converted to bytes when dumped (h5 compatibility)
+            np_dtype = np.dtype(
+                [
+                    (k, np.empty(0, dtype=v).astype(np.dtypes.BytesDType).dtype)
+                    if dict(dataset.columns)[k] == "str"
+                    else (k, v)
+                    for k, (v, _) in dataset.data.dtype.fields.items()
+                ]
+            )
+
+            h5_dataset = h5group.create_dataset(
+                dkey,
+                data=dataset.data.astype(np_dtype),
+            )
 
         # dump dataset attributes
         for akey, attr in dataset.attrs.items():
@@ -151,6 +178,35 @@ class Datastore(BaseModel, extra="forbid"):
                 self._dump_group(f, gkey, group)
 
     @classmethod
+    def _load_data(cls, group, h5group, dkey, ikey=None):
+        field = group.__dict__[ikey] if ikey else group.__dict__
+        h5field = h5group[ikey] if ikey else h5group
+
+        if isinstance(field[dkey], Dataset):
+            field[dkey].data = np.array(h5field[dkey][()]).astype(
+                DTypes.get(field[dkey].dtype).value
+            )
+            return
+        if isinstance(field[dkey], Table):
+            np_dtype = np.dtype(
+                [
+                    (
+                        k,
+                        np.empty(0, dtype=v).astype(np.dtypes.StrDType).dtype,
+                    )
+                    if dict(field[dkey].columns)[k] == "str"
+                    else (k, v)
+                    for k, (v, _) in np.array(h5field[dkey][()]).dtype.fields.items()
+                ]
+            )
+            field[dkey].data = np.array(h5field[dkey][()]).astype(np_dtype)
+            return
+
+        raise ValueError(
+            "Attempted to load Group data field that is neither Dataset nor Table."
+        )
+
+    @classmethod
     def model_validate_hdf5(cls, filepath: pathlib.Path):
         """
         Loads the model from an HDF5 file at the specified filepath.
@@ -172,26 +228,14 @@ class Datastore(BaseModel, extra="forbid"):
                     if group.__dict__[dkey] is None:
                         continue
 
-                    # load Dataset data
-                    if isinstance(group.__dict__[dkey], Dataset):
-                        group.__dict__[dkey].data = np.array(f[gkey][dkey][()]).astype(
-                            DTypes.get(group.__dict__[dkey].dtype).value
-                        )
-                        continue
-
-                    # load data for dict of Dataset
+                    # load data for dict of Dataset or dict of Table
                     if isinstance(group.__dict__[dkey], dict):
                         for ddkey in group.__dict__[dkey]:
-                            group.__dict__[dkey][ddkey].data = np.array(
-                                f[gkey][dkey][ddkey][()]
-                            ).astype(
-                                DTypes.get(group.__dict__[dkey][ddkey].dtype).value
-                            )
+                            cls._load_data(group, f[gkey], dkey=ddkey, ikey=dkey)
                         continue
 
-                    raise TypeError(
-                        "Group data fields must be of type Dataset or dict of Dataset."
-                    )
+                    # load Dataset or Table data
+                    cls._load_data(group, f[gkey], dkey=dkey)
 
             return self
 
