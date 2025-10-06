@@ -108,7 +108,7 @@ class GroupBase(BaseModel, extra="forbid"):
 
             if not cls._is_allowed_field_type(v):
                 raise TypeError(
-                    "All fields of `GroupBase` have to be of type `Dataset`."
+                    "All fields of `GroupBase` have to be of type `Dataset` or `Table`."
                 )
 
         cls.__annotations__["class_"] = Literal[cls.__name__]
