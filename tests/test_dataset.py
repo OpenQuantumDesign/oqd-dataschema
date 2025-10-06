@@ -79,18 +79,21 @@ class TestDatasetDtype:
 class TestDatasetShape:
     @pytest.mark.xfail(raises=ValueError)
     @pytest.mark.parametrize(
-        "shape",
+        ("shape", "data_shape"),
         [
-            (0,),
-            (1,),
-            (99,),
-            (1, 1),
+            ((0,), (100,)),
+            ((1,), (100,)),
+            ((99,), (100,)),
+            ((1, 1), (100,)),
+            ((100, None), (100,)),
+            ((None, None), (100,)),
+            ((None, 100), (100,)),
         ],
     )
-    def test_unmatched_shape_data(self, shape):
-        ds = Dataset(dtype="float64", shape=(100,))
+    def test_unmatched_shape_data(self, shape, data_shape):
+        ds = Dataset(dtype="float64", shape=shape)
 
-        data = np.random.rand(*shape)
+        data = np.random.rand(*data_shape)
         ds.data = data
 
     @pytest.mark.parametrize(
