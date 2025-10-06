@@ -121,6 +121,9 @@ class Table(BaseModel, extra="forbid"):
         if not isinstance(value.dtype.fields, MappingProxyType):
             raise TypeError("dtype of data must be a structured dtype.")
 
+        if isinstance(value, np.ndarray):
+            value = value.view(np.recarray)
+
         return value
 
     @model_validator(mode="after")
