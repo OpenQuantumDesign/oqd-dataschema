@@ -151,6 +151,36 @@ class Folder(GroupField, extra="forbid"):
         return document_schema
 
     @staticmethod
+    def _numpy_dtype(document_schema, *, str_size=64, bytes_size=64):
+        np_dtype = []
+
+        for k, v in document_schema.items():
+            if v is None:
+                raise ValueError(
+                    "Method numpy_dtype can only be called on concrete types."
+                )
+
+            if isinstance(v, dict):
+                dt = Folder._numpy_dtype(
+                    document_schema[k], str_size=str_size, bytes_size=bytes_size
+                )
+            elif v == "str":
+                dt = np.dtypes.StrDType(str_size)
+            elif v == "bytes":
+                dt = np.dtypes.BytesDType(bytes_size)
+            else:
+                dt = DTypes.get(v).value()
+
+            np_dtype.append((k, dt))
+
+        return np.dtype(np_dtype)
+
+    def numpy_dtype(self, *, str_size=64, bytes_size=64):
+        return self._numpy_dtype(
+            self.document_schema, str_size=str_size, bytes_size=bytes_size
+        )
+
+    @staticmethod
     def _dump_dtype_str_to_bytes(dtype):
         np_dtype = []
 

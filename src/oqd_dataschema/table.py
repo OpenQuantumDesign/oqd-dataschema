@@ -165,6 +165,25 @@ class Table(GroupField, extra="forbid"):
 
         return self
 
+    def numpy_dtype(self, *, str_size=64, bytes_size=64):
+        np_dtype = []
+
+        for k, v in self.columns:
+            if v is None:
+                raise ValueError(
+                    "Method numpy_dtype can only be called on concrete types."
+                )
+            if v == "str":
+                dt = np.dtypes.StrDType(str_size)
+            elif v == "bytes":
+                dt = np.dtypes.BytesDType(bytes_size)
+            else:
+                dt = DTypes.get(v).value()
+
+            np_dtype.append((k, dt))
+
+        return np.dtype(np_dtype)
+
     @classmethod
     def cast(cls, data):
         if isinstance(data, pd.DataFrame):
