@@ -123,11 +123,32 @@ class Folder(GroupField, extra="forbid"):
         ):
             raise ValueError(f"Expected shape {self.shape}, but got {self.data.shape}.")
 
+        # reassign dtype if it is None
+        document_schema_from_dtype = self._get_document_schema_from_dtype(
+            self.data.dtype
+        )
+        if self.document_schema != document_schema_from_dtype:
+            self.document_schema = document_schema_from_dtype
+
         # resassign shape to concrete value if it is None or a flexible shape
         if self.shape != self.data.shape:
             self.shape = self.data.shape
 
         return self
+
+    @staticmethod
+    def _get_document_schema_from_dtype(dtype):
+        document_schema = {}
+
+        for k, (v, _) in dtype.fields.items():
+            if isinstance(v.fields, MappingProxyType):
+                dt = Folder._get_document_schema_from_dtype(v)
+            else:
+                dt = DTypes(type(v)).name.lower()
+
+            document_schema[k] = dt
+
+        return document_schema
 
     @staticmethod
     def _dump_dtype_str_to_bytes(dtype):

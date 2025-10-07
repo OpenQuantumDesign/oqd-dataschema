@@ -15,6 +15,7 @@
 from .constrained import condataset, contable
 from .dataset import CastDataset, Dataset
 from .datastore import Datastore
+from .folder import Folder
 from .group import (
     ExpectationValueDataGroup,
     GroupBase,
@@ -41,4 +42,5 @@ __all__ = [
     "Table",
     "CastTable",
     "contable",
+    "Folder",
 ]
