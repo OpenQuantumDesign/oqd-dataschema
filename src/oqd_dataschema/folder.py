@@ -14,10 +14,11 @@
 
 
 from types import MappingProxyType
-from typing import Any, Dict, Literal, Optional, Tuple, Union
+from typing import Annotated, Any, Dict, Literal, Optional, Tuple, Union
 
 import numpy as np
 from pydantic import (
+    BeforeValidator,
     ConfigDict,
     Field,
     field_validator,
@@ -30,9 +31,7 @@ from oqd_dataschema.utils import _flex_shape_equal
 
 ########################################################################################
 
-__all__ = [
-    "Folder",
-]
+__all__ = ["Folder", "CastFolder"]
 
 ########################################################################################
 
@@ -221,3 +220,17 @@ class Folder(GroupField, extra="forbid"):
         np_dtype = self._load_dtype_bytes_to_str(self.document_schema, data.dtype)
 
         return data.astype(np_dtype)
+
+    @classmethod
+    def cast(cls, data):
+        if isinstance(data, np.ndarray):
+            if not isinstance(data.dtype.fields, MappingProxyType):
+                raise TypeError("dtype of data must be a structured dtype.")
+
+            document_schema = cls._get_document_schema_from_dtype(data.dtype)
+
+            return cls(document_schema=document_schema, data=data)
+        return data
+
+
+CastFolder = Annotated[Folder, BeforeValidator(Folder.cast)]

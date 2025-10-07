@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .constrained import condataset, contable
+from .constrained import condataset, confolder, contable
 from .dataset import CastDataset, Dataset
 from .datastore import Datastore
-from .folder import Folder
+from .folder import CastFolder, Folder
 from .group import (
     ExpectationValueDataGroup,
     GroupBase,
@@ -43,4 +43,6 @@ __all__ = [
     "CastTable",
     "contable",
     "Folder",
+    "CastFolder",
+    "confolder",
 ]

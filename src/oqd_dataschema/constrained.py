@@ -18,15 +18,13 @@ from typing import Annotated, Sequence
 from pydantic import AfterValidator
 
 from oqd_dataschema.dataset import CastDataset
+from oqd_dataschema.folder import Folder
 from oqd_dataschema.table import CastTable
 from oqd_dataschema.utils import _flex_shape_equal, _validator_from_condition
 
 ########################################################################################
 
-__all__ = [
-    "contable",
-    "condataset",
-]
+__all__ = ["contable", "condataset", "confolder"]
 
 ########################################################################################
 
@@ -169,6 +167,23 @@ def contable(
             )
         ),
         AfterValidator(_constrain_dtype_table(dtype_constraint=dtype_constraint)),
+        AfterValidator(_constraint_dim(min_dim=min_dim, max_dim=max_dim)),
+        AfterValidator(_constraint_shape(shape_constraint=shape_constraint)),
+    ]
+
+
+########################################################################################
+
+
+def confolder(
+    *,
+    shape_constraint=None,
+    min_dim=None,
+    max_dim=None,
+):
+    """Implements dtype, dimension and shape constrains on the Folder."""
+    return Annotated[
+        Folder,
         AfterValidator(_constraint_dim(min_dim=min_dim, max_dim=max_dim)),
         AfterValidator(_constraint_shape(shape_constraint=shape_constraint)),
     ]
