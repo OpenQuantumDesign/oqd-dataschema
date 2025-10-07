@@ -14,6 +14,7 @@
 
 import typing
 import warnings
+from functools import reduce
 from types import NoneType
 from typing import Annotated, ClassVar, Literal, Union
 
@@ -23,10 +24,8 @@ from pydantic import (
     TypeAdapter,
 )
 
-from oqd_dataschema.base import Attrs
-from oqd_dataschema.dataset import CastDataset, Dataset
-from oqd_dataschema.folder import Folder
-from oqd_dataschema.table import Table
+from oqd_dataschema.base import Attrs, GroupField
+from oqd_dataschema.dataset import CastDataset
 
 ########################################################################################
 
@@ -62,30 +61,32 @@ class GroupBase(BaseModel, extra="forbid"):
     attrs: Attrs = {}
 
     @staticmethod
-    def _is_datafield_type(v):
-        return (
-            Dataset._is_dataset_type(v)
-            or Table._is_table_type(v)
-            or Folder._is_folder_type(v)
+    def _is_basic_groupfield_type(v):
+        return reduce(
+            lambda x, y: x or y,
+            (gf._is_supported_type(v) for gf in GroupField.__subclasses__()),
         )
 
     @classmethod
-    def _is_allowed_field_type(cls, v):
-        is_datafield = cls._is_datafield_type(v)
+    def _is_groupfield_type(cls, v):
+        is_datafield = cls._is_basic_groupfield_type(v)
 
         is_annotated_datafield = typing.get_origin(
             v
-        ) is Annotated and cls._is_datafield_type(v.__origin__)
+        ) is Annotated and cls._is_basic_groupfield_type(v.__origin__)
 
         is_optional_datafield = typing.get_origin(v) is Union and (
-            (v.__args__[0] == NoneType and cls._is_datafield_type(v.__args__[1]))
-            or (v.__args__[1] == NoneType and cls._is_datafield_type(v.__args__[0]))
+            (v.__args__[0] == NoneType and cls._is_basic_groupfield_type(v.__args__[1]))
+            or (
+                v.__args__[1] == NoneType
+                and cls._is_basic_groupfield_type(v.__args__[0])
+            )
         )
 
         is_dict_datafield = (
             typing.get_origin(v) is dict
             and v.__args__[0] is str
-            and cls._is_datafield_type(v.__args__[1])
+            and cls._is_basic_groupfield_type(v.__args__[1])
         )
 
         return (
@@ -111,7 +112,7 @@ class GroupBase(BaseModel, extra="forbid"):
             if cls._is_classvar(v):
                 continue
 
-            if not cls._is_allowed_field_type(v):
+            if not cls._is_groupfield_type(v):
                 raise TypeError(
                     "All fields of `GroupBase` have to be of type `Dataset`, `Table` or `Folder`."
                 )

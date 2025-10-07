@@ -13,13 +13,11 @@
 # limitations under the License.
 
 
-import typing
 from types import MappingProxyType
-from typing import Annotated, Any, Dict, Literal, Optional, Tuple, Union
+from typing import Any, Dict, Literal, Optional, Tuple, Union
 
 import numpy as np
 from pydantic import (
-    BaseModel,
     ConfigDict,
     Field,
     field_validator,
@@ -27,7 +25,7 @@ from pydantic import (
 )
 from typing_extensions import TypeAliasType
 
-from oqd_dataschema.base import Attrs, DTypes
+from oqd_dataschema.base import Attrs, DTypes, GroupField
 from oqd_dataschema.utils import _flex_shape_equal
 
 ########################################################################################
@@ -44,7 +42,7 @@ DocumentSchema = TypeAliasType(
 )
 
 
-class Folder(BaseModel, extra="forbid"):
+class Folder(GroupField, extra="forbid"):
     document_schema: DocumentSchema
     shape: Optional[Tuple[Union[int, None], ...]] = None
     data: Optional[Any] = Field(default=None, exclude=True)
@@ -131,8 +129,44 @@ class Folder(BaseModel, extra="forbid"):
 
         return self
 
-    @classmethod
-    def _is_folder_type(cls, type_):
-        return type_ == cls or (
-            typing.get_origin(type_) is Annotated and type_.__origin__ is cls
-        )
+    @staticmethod
+    def _dump_dtype_str_to_bytes(dtype):
+        np_dtype = []
+
+        for k, (v, _) in dtype.fields.items():
+            if isinstance(v.fields, MappingProxyType):
+                dt = Folder._dump_dtype_str_to_bytes(v)
+            elif type(v) is np.dtypes.StrDType:
+                dt = np.empty(0, dtype=v).astype(np.dtypes.BytesDType).dtype
+            else:
+                dt = v
+
+            np_dtype.append((k, dt))
+
+        return np.dtype(np_dtype)
+
+    def _handle_data_dump(self, data):
+        np_dtype = self._dump_dtype_str_to_bytes(data.dtype)
+
+        return data.astype(np_dtype)
+
+    @staticmethod
+    def _load_dtype_bytes_to_str(document_schema, dtype):
+        np_dtype = []
+
+        for k, (v, _) in dtype.fields.items():
+            if isinstance(v.fields, MappingProxyType):
+                dt = Folder._load_dtype_bytes_to_str(document_schema[k], v)
+            elif document_schema[k] == "str":
+                dt = np.empty(0, dtype=v).astype(np.dtypes.StrDType).dtype
+            else:
+                dt = v
+
+            np_dtype.append((k, dt))
+
+        return np.dtype(np_dtype)
+
+    def _handle_data_load(self, data):
+        np_dtype = self._load_dtype_bytes_to_str(self.document_schema, data.dtype)
+
+        return data.astype(np_dtype)

@@ -13,14 +13,12 @@
 # limitations under the License.
 
 
-import typing
 from types import MappingProxyType
 from typing import Annotated, Any, List, Literal, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
 from pydantic import (
-    BaseModel,
     BeforeValidator,
     ConfigDict,
     Field,
@@ -28,7 +26,7 @@ from pydantic import (
     model_validator,
 )
 
-from oqd_dataschema.base import Attrs, DTypes
+from oqd_dataschema.base import Attrs, DTypes, GroupField
 from oqd_dataschema.utils import (
     _flex_shape_equal,
     _is_list_unique,
@@ -47,7 +45,7 @@ __all__ = [
 Column = Tuple[str, Optional[Literal[DTypes.names()]]]
 
 
-class Table(BaseModel, extra="forbid"):
+class Table(GroupField, extra="forbid"):
     columns: List[Column]  # type: ignore
     shape: Optional[Tuple[Union[int, None], ...]] = None
     data: Optional[Any] = Field(default=None, exclude=True)
@@ -184,11 +182,31 @@ class Table(BaseModel, extra="forbid"):
             return cls(columns=columns, data=data)
         return data
 
-    @classmethod
-    def _is_table_type(cls, type_):
-        return type_ == cls or (
-            typing.get_origin(type_) is Annotated and type_.__origin__ is cls
+    def _handle_data_dump(self, data):
+        np_dtype = np.dtype(
+            [
+                (k, np.empty(0, dtype=v).astype(np.dtypes.BytesDType).dtype)
+                if type(v) is np.dtypes.StrDType
+                else (k, v)
+                for k, (v, _) in data.dtype.fields.items()
+            ]
         )
+
+        return data.astype(np_dtype)
+
+    def _handle_data_load(self, data):
+        np_dtype = np.dtype(
+            [
+                (
+                    k,
+                    np.empty(0, dtype=v).astype(np.dtypes.StrDType).dtype,
+                )
+                if dict(self.columns)[k] == "str"
+                else (k, v)
+                for k, (v, _) in np.array(data).dtype.fields.items()
+            ]
+        )
+        return data.astype(np_dtype)
 
 
 CastTable = Annotated[Table, BeforeValidator(Table.cast)]

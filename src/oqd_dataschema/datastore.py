@@ -19,16 +19,13 @@ import pathlib
 from typing import Any, Dict, Literal
 
 import h5py
-import numpy as np
 from pydantic import (
     BaseModel,
     field_validator,
 )
 
-from oqd_dataschema.base import Attrs, DTypes
-from oqd_dataschema.dataset import Dataset
+from oqd_dataschema.base import Attrs, GroupField
 from oqd_dataschema.group import GroupBase, GroupRegistry
-from oqd_dataschema.table import Table
 
 ########################################################################################
 
@@ -109,11 +106,7 @@ class Datastore(BaseModel, extra="forbid"):
     def _dump_dataset(self, h5group, dkey, dataset):
         """Helper function for dumping Dataset."""
 
-        if (
-            dataset is not None
-            and not isinstance(dataset, Dataset)
-            and not isinstance(dataset, Table)
-        ):
+        if dataset is not None and not isinstance(dataset, GroupField):
             raise ValueError("Group data field is not a Dataset or a Table.")
 
         # handle optional dataset
@@ -121,33 +114,10 @@ class Datastore(BaseModel, extra="forbid"):
             h5_dataset = h5group.create_dataset(dkey, data=h5py.Empty("f"))
             return
 
-        if isinstance(dataset, Dataset):
-            # dtype str converted to bytes when dumped (h5 compatibility)
-            np_dtype = (
-                np.dtypes.BytesDType
-                if dataset.dtype == "str"
-                else DTypes.get(dataset.dtype).value
-            )
-
-            h5_dataset = h5group.create_dataset(
-                dkey, data=dataset.data.astype(np_dtype)
-            )
-
-        if isinstance(dataset, Table):
-            # dtype str converted to bytes when dumped (h5 compatibility)
-            np_dtype = np.dtype(
-                [
-                    (k, np.empty(0, dtype=v).astype(np.dtypes.BytesDType).dtype)
-                    if dict(dataset.columns)[k] == "str"
-                    else (k, v)
-                    for k, (v, _) in dataset.data.dtype.fields.items()
-                ]
-            )
-
-            h5_dataset = h5group.create_dataset(
-                dkey,
-                data=dataset.data.astype(np_dtype),
-            )
+        # dtype str converted to bytes when dumped (h5 compatibility)
+        h5_dataset = h5group.create_dataset(
+            dkey, data=dataset._handle_data_dump(dataset.data)
+        )
 
         # dump dataset attributes
         for akey, attr in dataset.attrs.items():
@@ -182,24 +152,8 @@ class Datastore(BaseModel, extra="forbid"):
         field = group.__dict__[ikey] if ikey else group.__dict__
         h5field = h5group[ikey] if ikey else h5group
 
-        if isinstance(field[dkey], Dataset):
-            field[dkey].data = np.array(h5field[dkey][()]).astype(
-                DTypes.get(field[dkey].dtype).value
-            )
-            return
-        if isinstance(field[dkey], Table):
-            np_dtype = np.dtype(
-                [
-                    (
-                        k,
-                        np.empty(0, dtype=v).astype(np.dtypes.StrDType).dtype,
-                    )
-                    if dict(field[dkey].columns)[k] == "str"
-                    else (k, v)
-                    for k, (v, _) in np.array(h5field[dkey][()]).dtype.fields.items()
-                ]
-            )
-            field[dkey].data = np.array(h5field[dkey][()]).astype(np_dtype)
+        if isinstance(field[dkey], GroupField):
+            field[dkey].data = field[dkey]._handle_data_load(h5field[dkey][()])
             return
 
         raise ValueError(

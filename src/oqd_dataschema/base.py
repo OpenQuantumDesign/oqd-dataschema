@@ -13,20 +13,20 @@
 # limitations under the License.
 
 # %%
+import typing
+from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Annotated, Optional, Union
 
 import numpy as np
 from pydantic import (
+    BaseModel,
     BeforeValidator,
 )
 
 ########################################################################################
 
-__all__ = [
-    "Attrs",
-    "DTypes",
-]
+__all__ = ["Attrs", "DTypes", "GroupField"]
 
 ########################################################################################
 
@@ -75,3 +75,23 @@ Attrs = Optional[
         Union[int, float, str, complex],
     ]
 ]
+
+########################################################################################
+
+
+class GroupField(BaseModel, ABC):
+    attrs: Attrs
+
+    @classmethod
+    def _is_supported_type(cls, type_):
+        return type_ == cls or (
+            typing.get_origin(type_) is Annotated and type_.__origin__ is cls
+        )
+
+    @abstractmethod
+    def _handle_data_dump(self, data):
+        pass
+
+    @abstractmethod
+    def _handle_data_load(self, data):
+        pass

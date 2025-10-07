@@ -13,12 +13,10 @@
 # limitations under the License.
 
 # %%
-import typing
 from typing import Annotated, Any, Literal, Optional, Tuple, Union
 
 import numpy as np
 from pydantic import (
-    BaseModel,
     BeforeValidator,
     ConfigDict,
     Field,
@@ -26,7 +24,7 @@ from pydantic import (
     model_validator,
 )
 
-from oqd_dataschema.base import Attrs, DTypes
+from oqd_dataschema.base import Attrs, DTypes, GroupField
 
 from .utils import _flex_shape_equal
 
@@ -40,7 +38,7 @@ __all__ = [
 ########################################################################################
 
 
-class Dataset(BaseModel, extra="forbid"):
+class Dataset(GroupField, extra="forbid"):
     """
     Schema representation for a dataset object to be saved within an HDF5 file.
 
@@ -126,11 +124,19 @@ class Dataset(BaseModel, extra="forbid"):
     def __getitem__(self, idx):
         return self.data[idx]
 
-    @classmethod
-    def _is_dataset_type(cls, type_):
-        return type_ == cls or (
-            typing.get_origin(type_) is Annotated and type_.__origin__ is cls
+    def _handle_data_dump(self, data):
+        np_dtype = (
+            np.dtypes.BytesDType if type(data.dtype) is np.dtypes.StrDType else None
         )
+
+        if np_dtype is None:
+            return data
+
+        return data.astype(np_dtype)
+
+    def _handle_data_load(self, data):
+        np_dtype = DTypes.get(self.dtype).value
+        return data.astype(np_dtype)
 
 
 CastDataset = Annotated[Dataset, BeforeValidator(Dataset.cast)]
