@@ -70,7 +70,7 @@ class Table(BaseModel, extra="forbid"):
         return value
 
     @property
-    def pd(self):
+    def dataframe(self):
         if len(self.shape) > 1:
             raise ValueError(
                 "Conversion to pandas DataFrame only supported on 1D Table."
