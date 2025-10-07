@@ -25,6 +25,7 @@ from .group import (
     SinaraRawDataGroup,
 )
 from .table import CastTable, Table
+from .utils import dict_to_structured, unstructured_to_structured
 
 ########################################################################################
 
@@ -45,4 +46,6 @@ __all__ = [
     "Folder",
     "CastFolder",
     "confolder",
+    "dict_to_structured",
+    "unstructured_to_structured",
 ]

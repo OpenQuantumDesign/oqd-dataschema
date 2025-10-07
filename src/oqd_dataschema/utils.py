@@ -13,6 +13,10 @@
 # limitations under the License.
 
 from functools import reduce
+from types import MappingProxyType
+
+import numpy as np
+from numpy.lib import recfunctions as rfn
 
 ########################################################################################
 
@@ -20,6 +24,75 @@ __all__ = ["_flex_shape_equal", "_validator_from_condition", "_is_list_unique"]
 
 
 ########################################################################################
+
+
+def _unstructured_to_structured_helper(new_data, data, dtype, counter=0):
+    for k, (v, _) in dtype.fields.items():
+        if isinstance(v.fields, MappingProxyType):
+            _unstructured_to_structured_helper(new_data[k], data, v, counter=counter)
+            counter += len(rfn.flatten_descr(v))
+
+            continue
+
+        new_data[k] = data[..., counter].astype(v)
+        counter += 1
+
+    return new_data
+
+
+def unstructured_to_structured(data, dtype):
+    leaves = len(rfn.flatten_descr(dtype))
+    if data.shape[-1] != leaves:
+        raise ValueError(
+            f"Incompatible shape, last dimension of data ({data.shape[-1]}) must match number of leaves in structured dtype ({leaves})."
+        )
+
+    new_data = np.empty(data.shape[:-1], dtype=dtype)
+    _unstructured_to_structured_helper(new_data, data, dtype)
+
+    return new_data
+
+
+def _dtype_from_dict(data):
+    np_dtype = []
+
+    for k, v in data.items():
+        if isinstance(v, dict):
+            dt = _dtype_from_dict(v)
+        else:
+            dt = v.dtype
+
+        np_dtype.append((k, dt))
+
+    return np.dtype(np_dtype)
+
+
+def _dict_to_structured_helper(new_data, data, dtype):
+    for k, (v, _) in dtype.fields.items():
+        if isinstance(v.fields, MappingProxyType):
+            _dict_to_structured_helper(new_data[k], data[k], v)
+            continue
+
+        new_data[k] = data[k]
+    return new_data
+
+
+def dict_to_structured(data):
+    data_dtype = _dtype_from_dict(data)
+
+    print(rfn.get_names(data_dtype))
+
+    example_data = data
+    key = rfn.get_names(data_dtype)[0]
+    while isinstance(key, tuple):
+        example_data = example_data[key[0]]
+        key = key[1][0]
+    example_data = example_data[key]
+
+    new_data = np.empty(example_data.shape, dtype=data_dtype)
+    _dict_to_structured_helper(new_data, data, dtype=data_dtype)
+
+    return new_data
 
 
 def _flex_shape_equal(shape1, shape2):
