@@ -80,8 +80,6 @@ def _dict_to_structured_helper(new_data, data, dtype):
 def dict_to_structured(data):
     data_dtype = _dtype_from_dict(data)
 
-    print(rfn.get_names(data_dtype))
-
     example_data = data
     key = rfn.get_names(data_dtype)[0]
     while isinstance(key, tuple):
