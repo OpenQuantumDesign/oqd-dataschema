@@ -26,16 +26,27 @@ __all__ = ["_flex_shape_equal", "_validator_from_condition", "_is_list_unique"]
 ########################################################################################
 
 
-def _unstructured_to_structured_helper(new_data, data, dtype, counter=0):
-    for k, (v, _) in dtype.fields.items():
+def _unstructured_to_structured_helper(data, dtype, counter=0):
+    for n, (k, (v, _)) in enumerate(dtype.fields.items()):
         if isinstance(v.fields, MappingProxyType):
-            _unstructured_to_structured_helper(new_data[k], data, v, counter=counter)
+            x = _unstructured_to_structured_helper(data, v, counter=counter)
             counter += len(rfn.flatten_descr(v))
 
-            continue
+        else:
+            x = data[..., counter].astype(type(v))
+            x = x.astype(
+                np.dtype(
+                    [
+                        (k, x.dtype),
+                    ]
+                )
+            )
+            counter += 1
 
-        new_data[k] = data[..., counter].astype(v)
-        counter += 1
+        if n == 0:
+            new_data = x
+        else:
+            new_data = rfn.append_fields(new_data, k, x, usemask=False)
 
     return new_data
 
@@ -47,8 +58,7 @@ def unstructured_to_structured(data, dtype):
             f"Incompatible shape, last dimension of data ({data.shape[-1]}) must match number of leaves in structured dtype ({leaves})."
         )
 
-    new_data = np.empty(data.shape[:-1], dtype=dtype)
-    _unstructured_to_structured_helper(new_data, data, dtype)
+    new_data = _unstructured_to_structured_helper(data, dtype)
 
     return new_data
 
