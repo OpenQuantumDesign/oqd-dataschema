@@ -26,34 +26,40 @@ __all__ = ["_flex_shape_equal", "_validator_from_condition", "_is_list_unique"]
 ########################################################################################
 
 
-def _unstructured_to_structured_helper(data, dtype, counter=0):
+def _unstructured_to_structured_helper(data, dtype):
     for n, (k, (v, _)) in enumerate(dtype.fields.items()):
         if isinstance(v.fields, MappingProxyType):
-            x = _unstructured_to_structured_helper(data, v, counter=counter)
-            counter += len(rfn.flatten_descr(v))
+            x = _unstructured_to_structured_helper(data, v)
 
         else:
-            x = data[..., counter].astype(type(v))
-            x = x.astype(
+            x = data.pop(0).astype(type(v))
+
+        if n == 0:
+            new_data = x.astype(
                 np.dtype(
                     [
                         (k, x.dtype),
                     ]
                 )
             )
-            counter += 1
-
-        if n == 0:
-            new_data = x
         else:
-            new_data = rfn.append_fields(new_data, k, x, usemask=False)
+            if new_data.shape != x.shape:
+                raise ValueError(
+                    f"Incompatible shape, expected {new_data.shape} but got {x.shape}."
+                )
 
-    return new_data
+            new_data = rfn.append_fields(
+                new_data.flatten(), k, x.flatten(), usemask=False
+            ).reshape(x.shape)
+
+    return new_data.view(np.recarray)
 
 
 def unstructured_to_structured(data, dtype):
+    data = list(np.moveaxis(data, -1, 0))
+
     leaves = len(rfn.flatten_descr(dtype))
-    if data.shape[-1] != leaves:
+    if len(data) != leaves:
         raise ValueError(
             f"Incompatible shape, last dimension of data ({data.shape[-1]}) must match number of leaves in structured dtype ({leaves})."
         )
@@ -77,28 +83,38 @@ def _dtype_from_dict(data):
     return np.dtype(np_dtype)
 
 
-def _dict_to_structured_helper(new_data, data, dtype):
-    for k, (v, _) in dtype.fields.items():
+def _dict_to_structured_helper(data, dtype):
+    for n, (k, (v, _)) in enumerate(dtype.fields.items()):
         if isinstance(v.fields, MappingProxyType):
-            _dict_to_structured_helper(new_data[k], data[k], v)
-            continue
+            x = _dict_to_structured_helper(data[k], v)
+        else:
+            x = data[k]
 
-        new_data[k] = data[k]
-    return new_data
+        if n == 0:
+            new_data = x.astype(
+                np.dtype(
+                    [
+                        (k, x.dtype),
+                    ]
+                )
+            )
+        else:
+            if new_data.shape != x.shape:
+                raise ValueError(
+                    f"Incompatible shape, expected {new_data.shape} but got {x.shape}."
+                )
+
+            new_data = rfn.append_fields(
+                new_data.flatten(), k, x.flatten(), usemask=False
+            ).reshape(x.shape)
+
+    return new_data.view(np.recarray)
 
 
 def dict_to_structured(data):
     data_dtype = _dtype_from_dict(data)
 
-    example_data = data
-    key = rfn.get_names(data_dtype)[0]
-    while isinstance(key, tuple):
-        example_data = example_data[key[0]]
-        key = key[1][0]
-    example_data = example_data[key]
-
-    new_data = np.empty(example_data.shape, dtype=data_dtype)
-    _dict_to_structured_helper(new_data, data, dtype=data_dtype)
+    new_data = _dict_to_structured_helper(data, dtype=data_dtype)
 
     return new_data
 
