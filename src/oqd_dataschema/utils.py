@@ -35,13 +35,7 @@ def _unstructured_to_structured_helper(data, dtype):
             x = data.pop(0).astype(type(v))
 
         if n == 0:
-            new_data = x.astype(
-                np.dtype(
-                    [
-                        (k, x.dtype),
-                    ]
-                )
-            )
+            new_data = x.astype(np.dtype([(k, x.dtype)]))
         else:
             if new_data.shape != x.shape:
                 raise ValueError(
@@ -69,6 +63,9 @@ def unstructured_to_structured(data, dtype):
     return new_data
 
 
+########################################################################################
+
+
 def _dtype_from_dict(data):
     np_dtype = []
 
@@ -91,13 +88,7 @@ def _dict_to_structured_helper(data, dtype):
             x = data[k]
 
         if n == 0:
-            new_data = x.astype(
-                np.dtype(
-                    [
-                        (k, x.dtype),
-                    ]
-                )
-            )
+            new_data = x.astype(np.dtype([(k, x.dtype)]))
         else:
             if new_data.shape != x.shape:
                 raise ValueError(
@@ -113,10 +104,11 @@ def _dict_to_structured_helper(data, dtype):
 
 def dict_to_structured(data):
     data_dtype = _dtype_from_dict(data)
-
     new_data = _dict_to_structured_helper(data, dtype=data_dtype)
-
     return new_data
+
+
+########################################################################################
 
 
 def _flex_shape_equal(shape1, shape2):
@@ -130,6 +122,9 @@ def _flex_shape_equal(shape1, shape2):
     )
 
 
+########################################################################################
+
+
 def _validator_from_condition(f):
     """Helper decorator for turning a condition into a validation."""
 
@@ -141,6 +136,9 @@ def _validator_from_condition(f):
         return _wrapped_condition
 
     return _wrapped_validator
+
+
+########################################################################################
 
 
 def _is_list_unique(data):
