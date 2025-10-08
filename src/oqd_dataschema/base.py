@@ -13,171 +13,85 @@
 # limitations under the License.
 
 # %%
-import warnings
-from typing import Annotated, Any, Literal, Optional, Union
+import typing
+from abc import ABC, abstractmethod
+from enum import Enum
+from typing import Annotated, Optional, Union
 
 import numpy as np
-from bidict import bidict
 from pydantic import (
     BaseModel,
-    ConfigDict,
-    Discriminator,
-    Field,
-    TypeAdapter,
-    model_validator,
+    BeforeValidator,
 )
 
 ########################################################################################
 
-__all__ = ["GroupBase", "Dataset", "GroupRegistry"]
+__all__ = ["Attrs", "DTypes", "GroupField"]
 
 ########################################################################################
 
 
-# %%
-mapping = bidict(
-    {
-        "int32": np.dtype("int32"),
-        "int64": np.dtype("int64"),
-        "float32": np.dtype("float32"),
-        "float64": np.dtype("float64"),
-        "complex64": np.dtype("complex64"),
-        "complex128": np.dtype("complex128"),
-        # 'string': np.type
-    }
-)
+class DTypes(Enum):
+    BOOL = np.dtypes.BoolDType
+    INT16 = np.dtypes.Int16DType
+    INT32 = np.dtypes.Int32DType
+    INT64 = np.dtypes.Int64DType
+    UINT16 = np.dtypes.UInt16DType
+    UINT32 = np.dtypes.UInt32DType
+    UINT64 = np.dtypes.UInt64DType
+    FLOAT16 = np.dtypes.Float16DType
+    FLOAT32 = np.dtypes.Float32DType
+    FLOAT64 = np.dtypes.Float64DType
+    COMPLEX64 = np.dtypes.Complex64DType
+    COMPLEX128 = np.dtypes.Complex128DType
+    STR = np.dtypes.StrDType
+    BYTES = np.dtypes.BytesDType
+    STRING = np.dtypes.StringDType
 
-
-class GroupBase(BaseModel, extra="forbid"):
-    """
-    Schema representation for a group object within an HDF5 file.
-
-    Each grouping of data should be defined as a subclass of `Group`, and specify the datasets that it will contain.
-    This base object only has attributes, `attrs`, which are associated to the HDF5 group.
-
-    Attributes:
-        attrs: A dictionary of attributes to append to the dataset.
-
-    Example:
-        ```
-        group = Group(attrs={'version': 2, 'date': '2025-01-01'})
-        ```
-    """
-
-    attrs: Optional[dict[str, Union[int, float, str, complex]]] = {}
-
-    def __init_subclass__(cls, **kwargs):
-        super().__init_subclass__(**kwargs)
-        cls.__annotations__["class_"] = Literal[cls.__name__]
-        setattr(cls, "class_", cls.__name__)
-
-        # Auto-register new group types
-        GroupRegistry.register(cls)
-
-
-class Dataset(BaseModel, extra="forbid"):
-    """
-    Schema representation for a dataset object to be saved within an HDF5 file.
-
-    Attributes:
-        dtype: The datatype of the dataset, such as `int32`, `float32`, `int64`, `float64`, etc.
-            Types are inferred from the `data` attribute if provided.
-        shape: The shape of the dataset.
-        data: The numpy ndarray of the data, from which `dtype` and `shape` are inferred.
-
-        attrs: A dictionary of attributes to append to the dataset.
-
-    Example:
-        ```
-        dataset = Dataset(data=np.array([1, 2, 3, 4]))
-
-        dataset = Dataset(dtype='int64', shape=[4,])
-        dataset.data = np.array([1, 2, 3, 4])
-        ```
-    """
-
-    dtype: Optional[Literal[tuple(mapping.keys())]] = None
-    shape: Optional[tuple[int, ...]] = None
-    data: Optional[Any] = Field(default=None, exclude=True)
-
-    attrs: Optional[dict[str, Union[int, float, str, complex]]] = {}
-
-    model_config = ConfigDict(arbitrary_types_allowed=True, validate_assignment=True)
-
-    @model_validator(mode="before")
     @classmethod
-    def validate_and_update(cls, values: dict):
-        data = values.get("data")
-        dtype = values.get("dtype")
-        shape = values.get("shape")
+    def get(cls, name):
+        return cls[name.upper()]
 
-        if data is None and (dtype is not None and shape is not None):
-            return values
-
-        elif data is not None and (dtype is None and shape is None):
-            if not isinstance(data, np.ndarray):
-                raise TypeError("`data` must be a numpy.ndarray.")
-
-            if data.dtype not in mapping.values():
-                raise TypeError(
-                    f"`data` must be a numpy array of dtype in {tuple(mapping.keys())}."
-                )
-
-            values["dtype"] = mapping.inverse[data.dtype]
-            values["shape"] = data.shape
-
-        return values
-
-    @model_validator(mode="after")
-    def validate_data_matches_shape_dtype(self):
-        """Ensure that `data` matches `dtype` and `shape`."""
-        if self.data is not None:
-            expected_dtype = mapping[self.dtype]
-            if self.data.dtype != expected_dtype:
-                raise ValueError(
-                    f"Expected data dtype `{self.dtype}`, but got `{self.data.dtype.name}`."
-                )
-            if self.data.shape != self.shape:
-                raise ValueError(
-                    f"Expected shape {self.shape}, but got {self.data.shape}."
-                )
-        return self
+    @classmethod
+    def names(cls):
+        return tuple((dtype.name.lower() for dtype in cls))
 
 
-class MetaGroupRegistry(type):
-    def __new__(cls, clsname, superclasses, attributedict):
-        attributedict["groups"] = dict()
-        return super().__new__(cls, clsname, superclasses, attributedict)
+########################################################################################
 
-    def register(cls, group):
-        if not issubclass(group, GroupBase):
-            raise TypeError("You may only register subclasses of GroupBase.")
-
-        if group.__name__ in cls.groups.keys():
-            warnings.warn(
-                f"Overwriting previously registered `{group.__name__}` group of the same name.",
-                UserWarning,
-                stacklevel=2,
-            )
-
-        cls.groups[group.__name__] = group
-
-    def clear(cls):
-        """Clear all registered types (useful for testing)"""
-        cls.groups.clear()
-
-    @property
-    def union(cls):
-        """Get the current Union of all registered types"""
-        return Annotated[
-            Union[tuple(cls.groups.values())], Discriminator(discriminator="class_")
-        ]
-
-    @property
-    def adapter(cls):
-        """Get TypeAdapter for current registered types"""
-        return TypeAdapter(cls.union)
+invalid_attrs = ["_datastore_signature", "_group_schema"]
 
 
-class GroupRegistry(metaclass=MetaGroupRegistry):
-    pass
+def _valid_attr_key(value):
+    if value in invalid_attrs:
+        raise KeyError
+
+    return value
+
+
+Attrs = Optional[
+    dict[
+        Annotated[str, BeforeValidator(_valid_attr_key)],
+        Union[int, float, str, complex],
+    ]
+]
+
+########################################################################################
+
+
+class GroupField(BaseModel, ABC):
+    attrs: Attrs
+
+    @classmethod
+    def _is_supported_type(cls, type_):
+        return type_ == cls or (
+            typing.get_origin(type_) is Annotated and type_.__origin__ is cls
+        )
+
+    @abstractmethod
+    def _handle_data_dump(self, data):
+        pass
+
+    @abstractmethod
+    def _handle_data_load(self, data):
+        pass

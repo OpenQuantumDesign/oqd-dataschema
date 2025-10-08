@@ -12,19 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .base import Dataset, GroupBase, GroupRegistry
+from .constrained import condataset, confolder, contable
+from .dataset import CastDataset, Dataset
 from .datastore import Datastore
-from .groups import (
+from .folder import CastFolder, Folder
+from .group import (
     ExpectationValueDataGroup,
+    GroupBase,
+    GroupRegistry,
     MeasurementOutcomesDataGroup,
     OQDTestbenchDataGroup,
     SinaraRawDataGroup,
 )
+from .table import CastTable, Table
+from .utils import dict_to_structured, unstructured_to_structured
 
 ########################################################################################
 
 __all__ = [
-    "Dataset",
     "Datastore",
     "GroupBase",
     "GroupRegistry",
@@ -32,4 +37,15 @@ __all__ = [
     "MeasurementOutcomesDataGroup",
     "OQDTestbenchDataGroup",
     "SinaraRawDataGroup",
+    "Dataset",
+    "CastDataset",
+    "condataset",
+    "Table",
+    "CastTable",
+    "contable",
+    "Folder",
+    "CastFolder",
+    "confolder",
+    "dict_to_structured",
+    "unstructured_to_structured",
 ]

@@ -174,3 +174,4 @@ cython_debug/
 *.h5
 *.code-workspace
 .pre-commit-config.yaml
+_scripts

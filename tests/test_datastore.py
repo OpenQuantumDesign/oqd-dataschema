@@ -13,41 +13,96 @@
 # limitations under the License.
 
 # %%
-import pathlib
+import uuid
+from typing import Dict, Optional
 
 import numpy as np
 import pytest
 
-from oqd_dataschema.base import Dataset, mapping
-from oqd_dataschema.datastore import Datastore
-from oqd_dataschema.groups import (
-    SinaraRawDataGroup,
+from oqd_dataschema import Dataset, Datastore, GroupBase
+
+# %%
+
+_Group = type(
+    f"_Group_{uuid.uuid4()}".replace("-", ""),
+    (GroupBase,),
+    {
+        "__annotations__": {
+            "x": Dataset,
+            "y": Dict[str, Dataset],
+            "z": Optional[Dataset],
+        },
+        "y": {},
+        "z": None,
+    },
 )
 
 
-# %%
-@pytest.mark.parametrize(
-    "dtype",
-    [
-        "int32",
-        "int64",
-        "float32",
-        "float64",
-        "complex64",
-        "complex128",
-    ],
-)
-def test_serialize_deserialize(dtype):
-    data = np.ones([10, 10]).astype(dtype)
-    dataset = SinaraRawDataGroup(camera_images=Dataset(data=data))
-    data = Datastore(groups={"test": dataset})
+class TestDatastore:
+    @pytest.mark.parametrize(
+        ("dtype", "np_dtype"),
+        [
+            ("bool", np.dtypes.BoolDType),
+            ("int16", np.dtypes.Int16DType),
+            ("int32", np.dtypes.Int32DType),
+            ("int64", np.dtypes.Int64DType),
+            ("uint16", np.dtypes.UInt16DType),
+            ("uint32", np.dtypes.UInt32DType),
+            ("uint64", np.dtypes.UInt64DType),
+            ("float16", np.dtypes.Float16DType),
+            ("float32", np.dtypes.Float32DType),
+            ("float64", np.dtypes.Float64DType),
+            ("complex64", np.dtypes.Complex64DType),
+            ("complex128", np.dtypes.Complex128DType),
+            ("str", np.dtypes.StrDType),
+            ("bytes", np.dtypes.BytesDType),
+            ("string", np.dtypes.StringDType),
+        ],
+    )
+    def test_serialize_deserialize_dtypes(self, dtype, np_dtype, tmp_path):
+        f = tmp_path / f"tmp{uuid.uuid4()}.h5"
 
-    filepath = pathlib.Path("test.h5")
-    data.model_dump_hdf5(filepath)
+        datastore = Datastore(
+            groups={"g1": _Group(x=Dataset(data=np.random.rand(1).astype(np_dtype)))}
+        )
 
-    data_reload = Datastore.model_validate_hdf5(filepath)
+        datastore.model_dump_hdf5(f)
 
-    assert data_reload.groups["test"].camera_images.data.dtype == mapping[dtype]
+        Datastore.model_validate_hdf5(f)
 
+    @pytest.mark.parametrize(
+        ("x", "y", "z"),
+        [
+            (
+                Dataset(data=np.random.rand(10)),
+                {},
+                None,
+            ),
+            (
+                Dataset(data=np.random.rand(10)),
+                {"f1": Dataset(data=np.random.rand(10))},
+                None,
+            ),
+            (
+                Dataset(data=np.random.rand(10)),
+                {"f1": Dataset(data=np.random.rand(10))},
+                Dataset(data=np.random.rand(10)),
+            ),
+            (
+                Dataset(data=np.random.rand(10)),
+                {
+                    "f1": Dataset(data=np.random.rand(10)),
+                    "f2": Dataset(data=np.random.rand(10)),
+                },
+                Dataset(data=np.random.rand(10)),
+            ),
+        ],
+    )
+    def test_serialize_deserialize_dataset_types(self, x, y, z, tmp_path):
+        f = tmp_path / f"tmp{uuid.uuid4()}.h5"
 
-# %%
+        datastore = Datastore(groups={"g1": _Group(x=x, y=y, z=z)})
+
+        datastore.model_dump_hdf5(f)
+
+        Datastore.model_validate_hdf5(f)
