@@ -19,7 +19,7 @@ extra:
 nav:
   - Get Started: index.md
   - Tutorial: tutorial.md
-  # - Explanation: explanation.md
+  - Explanation: explanation.md
   - API Reference:
       - Base: api/base.md
       - Group Field: api/groupfield.md

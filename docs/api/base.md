@@ -1,4 +1,4 @@
-## Base Objects
+## Attributes Types
 
 <!-- prettier-ignore -->
 ::: oqd_dataschema.base

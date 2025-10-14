@@ -57,11 +57,6 @@ class GroupBase(BaseModel, extra="forbid"):
 
     attrs: Attrs = Field(default_factory=lambda: {})
 
-    def __new__(cls, *args, **kwargs):
-        if cls is GroupBase:
-            raise TypeError(f"only subclasses of '{cls.__name__}' may be instantiated")
-        return object.__new__(cls, *args, **kwargs)
-
     @staticmethod
     def _is_basic_groupfield_type(v):
         return reduce(

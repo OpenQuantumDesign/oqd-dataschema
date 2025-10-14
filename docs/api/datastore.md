@@ -1,5 +1,3 @@
-## Datastore
-
 <!-- prettier-ignore -->
 ::: oqd_dataschema.datastore
     options:

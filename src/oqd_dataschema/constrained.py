@@ -13,7 +13,7 @@
 # limitations under the License.
 
 
-from typing import Annotated, Sequence
+from typing import Annotated, Sequence, TypeAlias
 
 from pydantic import AfterValidator
 
@@ -30,7 +30,7 @@ __all__ = ["contable", "condataset", "confolder"]
 
 
 @_validator_from_condition
-def _constraint_dim(model, *, min_dim=None, max_dim=None):
+def _constrain_dim(model, *, min_dim=None, max_dim=None):
     """Constrains the dimension of a Dataset or Table."""
 
     if min_dim is not None and max_dim is not None and min_dim > max_dim:
@@ -50,7 +50,7 @@ def _constraint_dim(model, *, min_dim=None, max_dim=None):
 
 
 @_validator_from_condition
-def _constraint_shape(model, *, shape_constraint=None):
+def _constrain_shape(model, *, shape_constraint=None):
     """Constrains the shape of a Dataset or Table."""
 
     # fast escape
@@ -91,13 +91,13 @@ def _constrain_dtype_dataset(dataset, *, dtype_constraint=None):
 
 def condataset(
     *, shape_constraint=None, dtype_constraint=None, min_dim=None, max_dim=None
-):
+) -> TypeAlias:
     """Implements dtype, dimension and shape constrains on the Dataset."""
     return Annotated[
         CastDataset,
         AfterValidator(_constrain_dtype_dataset(dtype_constraint=dtype_constraint)),
-        AfterValidator(_constraint_dim(min_dim=min_dim, max_dim=max_dim)),
-        AfterValidator(_constraint_shape(shape_constraint=shape_constraint)),
+        AfterValidator(_constrain_dim(min_dim=min_dim, max_dim=max_dim)),
+        AfterValidator(_constrain_shape(shape_constraint=shape_constraint)),
     ]
 
 
@@ -157,7 +157,7 @@ def contable(
     shape_constraint=None,
     min_dim=None,
     max_dim=None,
-):
+) -> TypeAlias:
     """Implements field, dtype, dimension and shape constrains on the Table."""
     return Annotated[
         CastTable,
@@ -167,8 +167,8 @@ def contable(
             )
         ),
         AfterValidator(_constrain_dtype_table(dtype_constraint=dtype_constraint)),
-        AfterValidator(_constraint_dim(min_dim=min_dim, max_dim=max_dim)),
-        AfterValidator(_constraint_shape(shape_constraint=shape_constraint)),
+        AfterValidator(_constrain_dim(min_dim=min_dim, max_dim=max_dim)),
+        AfterValidator(_constrain_shape(shape_constraint=shape_constraint)),
     ]
 
 
@@ -180,10 +180,10 @@ def confolder(
     shape_constraint=None,
     min_dim=None,
     max_dim=None,
-):
+) -> TypeAlias:
     """Implements dimension and shape constrains on the Folder."""
     return Annotated[
         Folder,
-        AfterValidator(_constraint_dim(min_dim=min_dim, max_dim=max_dim)),
-        AfterValidator(_constraint_shape(shape_constraint=shape_constraint)),
+        AfterValidator(_constrain_dim(min_dim=min_dim, max_dim=max_dim)),
+        AfterValidator(_constrain_shape(shape_constraint=shape_constraint)),
     ]

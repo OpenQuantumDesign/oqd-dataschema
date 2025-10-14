@@ -100,9 +100,11 @@ class GroupField(BaseModel, ABC):
         )
 
     @abstractmethod
-    def _handle_data_dump(self, data):
+    def _handle_data_dump(self, data: np.ndarray) -> np.ndarray:
+        """Hook into [Datastore.model_dump_hdf5][oqd_dataschema.datastore.Datastore.model_dump_hdf5] for compatibility mapping to HDF5."""
         pass
 
     @abstractmethod
-    def _handle_data_load(self, data):
+    def _handle_data_load(self, data: np.ndarray) -> np.ndarray:
+        """Hook into [Datastore.model_validate_hdf5][oqd_dataschema.datastore.Datastore.model_validate_hdf5] for reversing compatibility mapping, i.e. mapping data back to original type."""
         pass

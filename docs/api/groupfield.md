@@ -1,8 +1,7 @@
-## Group Field
-
 <!-- prettier-ignore -->
 ::: oqd_dataschema.base
     options:
+        filters: []
         heading_level: 3
         members: [
             "GroupField",
