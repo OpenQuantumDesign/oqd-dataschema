@@ -149,9 +149,13 @@ class MetaGroupRegistry(type):
     @property
     def union(cls):
         """Get the current Union of all registered types"""
-        return Annotated[
-            Union[tuple(cls.groups.values())], Discriminator(discriminator="class_")
-        ]
+
+        if len(cls.groups) > 1:
+            return Annotated[
+                Union[tuple(cls.groups.values())], Discriminator(discriminator="class_")
+            ]
+        else:
+            return next(iter(cls.groups.values()))
 
     @property
     def adapter(cls):
