@@ -26,7 +26,11 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
 ]
 
-dependencies = ["h5py>=3.14.0", "pydantic>=2.10.6"]
+dependencies = [
+    "h5py>=3.14.0",
+    "pandas>=2.3.3",
+ "pydantic>=2.10.6",
+]
 
 [project.optional-dependencies]
 docs = [

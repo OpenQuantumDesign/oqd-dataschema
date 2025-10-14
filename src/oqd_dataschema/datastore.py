@@ -19,13 +19,14 @@ import pathlib
 from typing import Any, Dict, Literal
 
 import h5py
-import numpy as np
 from pydantic import (
     BaseModel,
+    Field,
     field_validator,
 )
 
-from oqd_dataschema.base import Attrs, Dataset, DTypes, GroupBase, GroupRegistry
+from oqd_dataschema.base import Attrs, GroupField
+from oqd_dataschema.group import GroupBase, GroupRegistry
 
 ########################################################################################
 
@@ -44,9 +45,9 @@ class Datastore(BaseModel, extra="forbid"):
         attrs (Attrs): attributes of the datastore.
     """
 
-    groups: Dict[str, Any] = {}
+    groups: Dict[str, Any] = Field(default_factory=lambda: {})
 
-    attrs: Attrs = {}
+    attrs: Attrs = Field(default_factory=lambda: {})
 
     @classmethod
     def _validate_group(cls, key, group):
@@ -106,8 +107,8 @@ class Datastore(BaseModel, extra="forbid"):
     def _dump_dataset(self, h5group, dkey, dataset):
         """Helper function for dumping Dataset."""
 
-        if dataset is not None and not isinstance(dataset, Dataset):
-            raise ValueError("Group data field is not a Dataset.")
+        if dataset is not None and not isinstance(dataset, GroupField):
+            raise ValueError("Group data field is not a Dataset or a Table.")
 
         # handle optional dataset
         if dataset is None:
@@ -115,12 +116,9 @@ class Datastore(BaseModel, extra="forbid"):
             return
 
         # dtype str converted to bytes when dumped (h5 compatibility)
-        if dataset.dtype in "str":
-            h5_dataset = h5group.create_dataset(
-                dkey, data=dataset.data.astype(np.dtypes.BytesDType)
-            )
-        else:
-            h5_dataset = h5group.create_dataset(dkey, data=dataset.data)
+        h5_dataset = h5group.create_dataset(
+            dkey, data=dataset._handle_data_dump(dataset.data)
+        )
 
         # dump dataset attributes
         for akey, attr in dataset.attrs.items():
@@ -151,6 +149,19 @@ class Datastore(BaseModel, extra="forbid"):
                 self._dump_group(f, gkey, group)
 
     @classmethod
+    def _load_data(cls, group, h5group, dkey, ikey=None):
+        field = group.__dict__[ikey] if ikey else group.__dict__
+        h5field = h5group[ikey] if ikey else h5group
+
+        if isinstance(field[dkey], GroupField):
+            field[dkey].data = field[dkey]._handle_data_load(h5field[dkey][()])
+            return
+
+        raise ValueError(
+            "Attempted to load Group data field that is neither Dataset nor Table."
+        )
+
+    @classmethod
     def model_validate_hdf5(cls, filepath: pathlib.Path):
         """
         Loads the model from an HDF5 file at the specified filepath.
@@ -172,26 +183,14 @@ class Datastore(BaseModel, extra="forbid"):
                     if group.__dict__[dkey] is None:
                         continue
 
-                    # load Dataset data
-                    if isinstance(group.__dict__[dkey], Dataset):
-                        group.__dict__[dkey].data = np.array(f[gkey][dkey][()]).astype(
-                            DTypes.get(group.__dict__[dkey].dtype).value
-                        )
-                        continue
-
-                    # load data for dict of Dataset
+                    # load data for dict of Dataset or dict of Table
                     if isinstance(group.__dict__[dkey], dict):
                         for ddkey in group.__dict__[dkey]:
-                            group.__dict__[dkey][ddkey].data = np.array(
-                                f[gkey][dkey][ddkey][()]
-                            ).astype(
-                                DTypes.get(group.__dict__[dkey][ddkey].dtype).value
-                            )
+                            cls._load_data(group, f[gkey], dkey=ddkey, ikey=dkey)
                         continue
 
-                    raise TypeError(
-                        "Group data fields must be of type Dataset or dict of Dataset."
-                    )
+                    # load Dataset or Table data
+                    cls._load_data(group, f[gkey], dkey=dkey)
 
             return self
 

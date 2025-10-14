@@ -13,10 +13,102 @@
 # limitations under the License.
 
 from functools import reduce
+from types import MappingProxyType
+
+import numpy as np
+from numpy.lib import recfunctions as rfn
 
 ########################################################################################
 
-__all__ = ["_flex_shape_equal", "_validator_from_condition"]
+__all__ = [
+    "unstructured_to_structured",
+    "dict_to_structured",
+]
+
+
+########################################################################################
+
+
+def _unstructured_to_structured_helper(data, dtype):
+    for n, (k, (v, _)) in enumerate(dtype.fields.items()):
+        if isinstance(v.fields, MappingProxyType):
+            x = _unstructured_to_structured_helper(data, v)
+
+        else:
+            x = data.pop(0).astype(type(v))
+
+        if n == 0:
+            new_data = x.astype(np.dtype([(k, x.dtype)]))
+        else:
+            if new_data.shape != x.shape:
+                raise ValueError(
+                    f"Incompatible shape, expected {new_data.shape} but got {x.shape}."
+                )
+
+            new_data = rfn.append_fields(
+                new_data.flatten(), k, x.flatten(), usemask=False
+            ).reshape(x.shape)
+
+    return new_data.view(np.recarray)
+
+
+def unstructured_to_structured(data, dtype):
+    data = list(np.moveaxis(data, -1, 0))
+
+    leaves = len(rfn.flatten_descr(dtype))
+    if len(data) != leaves:
+        raise ValueError(
+            f"Incompatible shape, last dimension of data ({data.shape[-1]}) must match number of leaves in structured dtype ({leaves})."
+        )
+
+    new_data = _unstructured_to_structured_helper(data, dtype)
+
+    return new_data
+
+
+########################################################################################
+
+
+def _dtype_from_dict(data):
+    np_dtype = []
+
+    for k, v in data.items():
+        if isinstance(v, dict):
+            dt = _dtype_from_dict(v)
+        else:
+            dt = v.dtype
+
+        np_dtype.append((k, dt))
+
+    return np.dtype(np_dtype)
+
+
+def _dict_to_structured_helper(data, dtype):
+    for n, (k, (v, _)) in enumerate(dtype.fields.items()):
+        if isinstance(v.fields, MappingProxyType):
+            x = _dict_to_structured_helper(data[k], v)
+        else:
+            x = data[k]
+
+        if n == 0:
+            new_data = x.astype(np.dtype([(k, x.dtype)]))
+        else:
+            if new_data.shape != x.shape:
+                raise ValueError(
+                    f"Incompatible shape, expected {new_data.shape} but got {x.shape}."
+                )
+
+            new_data = rfn.append_fields(
+                new_data.flatten(), k, x.flatten(), usemask=False
+            ).reshape(x.shape)
+
+    return new_data.view(np.recarray)
+
+
+def dict_to_structured(data):
+    data_dtype = _dtype_from_dict(data)
+    new_data = _dict_to_structured_helper(data, dtype=data_dtype)
+    return new_data
 
 
 ########################################################################################
@@ -33,6 +125,9 @@ def _flex_shape_equal(shape1, shape2):
     )
 
 
+########################################################################################
+
+
 def _validator_from_condition(f):
     """Helper decorator for turning a condition into a validation."""
 
@@ -44,3 +139,22 @@ def _validator_from_condition(f):
         return _wrapped_condition
 
     return _wrapped_validator
+
+
+########################################################################################
+
+
+def _is_list_unique(data):
+    seen = set()
+    duplicates = set()
+    for element in data:
+        if element in duplicates:
+            continue
+
+        if element in seen:
+            duplicates.add(element)
+            continue
+
+        seen.add(element)
+
+    return (duplicates == set(), duplicates)

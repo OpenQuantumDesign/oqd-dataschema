@@ -17,7 +17,7 @@
 
 import pytest
 
-from oqd_dataschema.base import (
+from oqd_dataschema import (
     CastDataset,
     Dataset,
     GroupBase,

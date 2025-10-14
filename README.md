@@ -14,7 +14,7 @@ The design goals are to have:
 - Minimizes *a priori* knowledge that is needed of the internal heirarchical structure, reducing friction for users to load data.
 - Transparently return both raw and processed data, where the levels of post-processing can be selected by the user.
 
-To install, 
+To install,
 ```bash
 pip install git+https://github.com/OpenQuantumDesign/oqd-dataschema.git
 ```
