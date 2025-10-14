@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
 
 from types import MappingProxyType
 from typing import Annotated, Any, Dict, Literal, Optional, Tuple, Union
@@ -42,11 +43,47 @@ DocumentSchema = TypeAliasType(
 
 
 class Folder(GroupField, extra="forbid"):
+    """
+    Schema representation for a table object to be saved within an HDF5 file.
+
+    Attributes:
+        document_schema: The schema for a document (structured type with keys and their datatype). Types are inferred from the `data` attribute if not provided.
+        shape: The shape of the folder.
+        data: The numpy ndarray or recarray (of structured dtype) of the data, from which `dtype` and `shape` can be inferred.
+
+        attrs: A dictionary of attributes to append to the folder.
+
+    Example:
+        ```python
+        schema = dict(
+            index="int32",
+            t="float64",
+            channels=dict(ch1="complex128", ch2="complex128"),
+            label="str",
+        )
+        dt = np.dtype(
+            [
+                ("index", np.int32),
+                ("t", np.float64),
+                ("channels", np.dtype([("ch1", np.complex128), ("ch2", np.complex128)])),
+                ("label", np.dtype("<U10")),
+            ]
+        )
+        folder = Folder(
+            document_schema=schema,
+            data=np.array(
+                [(1, 0.1, (1 + 1j, 1 - 1j), "first"), (2, 0.2, (2 + 2j, 2 - 2j), "second")],
+                dtype=dt,
+            ),
+        )
+        ```
+    """
+
     document_schema: DocumentSchema
     shape: Optional[Tuple[Union[int, None], ...]] = None
     data: Optional[Any] = Field(default=None, exclude=True)
 
-    attrs: Attrs = {}
+    attrs: Attrs = Field(default_factory=lambda: {})
 
     model_config = ConfigDict(
         use_enum_values=False, arbitrary_types_allowed=True, validate_assignment=True
@@ -54,7 +91,7 @@ class Folder(GroupField, extra="forbid"):
 
     @field_validator("data", mode="before")
     @classmethod
-    def validate_and_update(cls, value):
+    def _validate_and_update(cls, value):
         # check if data exist
         if value is None:
             return value
@@ -106,7 +143,7 @@ class Folder(GroupField, extra="forbid"):
                 )
 
     @model_validator(mode="after")
-    def validate_data_matches_shape_dtype(self):
+    def _validate_data_matches_shape_dtype(self):
         """Ensure that `data` matches `dtype` and `shape`."""
 
         # check if data exist
@@ -174,7 +211,7 @@ class Folder(GroupField, extra="forbid"):
 
         return np.dtype(np_dtype)
 
-    def numpy_dtype(self, *, str_size=64, bytes_size=64):
+    def numpy_dtype(self, *, str_size=64, bytes_size=64) -> np.dtype:
         return self._numpy_dtype(
             self.document_schema, str_size=str_size, bytes_size=bytes_size
         )
@@ -222,7 +259,8 @@ class Folder(GroupField, extra="forbid"):
         return data.astype(np_dtype)
 
     @classmethod
-    def cast(cls, data):
+    def cast(cls, data: np.ndarray) -> Folder:
+        """Casts data from numpy structured array to Folder."""
         if isinstance(data, np.ndarray):
             if not isinstance(data.dtype.fields, MappingProxyType):
                 raise TypeError("dtype of data must be a structured dtype.")
@@ -234,3 +272,4 @@ class Folder(GroupField, extra="forbid"):
 
 
 CastFolder = Annotated[Folder, BeforeValidator(Folder.cast)]
+"""Annotated type that automatically executes Folder.cast"""

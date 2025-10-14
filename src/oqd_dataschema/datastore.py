@@ -21,6 +21,7 @@ from typing import Any, Dict, Literal
 import h5py
 from pydantic import (
     BaseModel,
+    Field,
     field_validator,
 )
 
@@ -44,9 +45,9 @@ class Datastore(BaseModel, extra="forbid"):
         attrs (Attrs): attributes of the datastore.
     """
 
-    groups: Dict[str, Any] = {}
+    groups: Dict[str, Any] = Field(default_factory=lambda: {})
 
-    attrs: Attrs = {}
+    attrs: Attrs = Field(default_factory=lambda: {})
 
     @classmethod
     def _validate_group(cls, key, group):

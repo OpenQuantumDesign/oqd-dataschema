@@ -13,6 +13,9 @@
 # limitations under the License.
 
 # %%
+
+from __future__ import annotations
+
 from typing import Annotated, Any, Literal, Optional, Tuple, Union
 
 import numpy as np
@@ -63,7 +66,7 @@ class Dataset(GroupField, extra="forbid"):
     shape: Optional[Tuple[Union[int, None], ...]] = None
     data: Optional[Any] = Field(default=None, exclude=True)
 
-    attrs: Attrs = {}
+    attrs: Attrs = Field(default_factory=lambda: {})
 
     model_config = ConfigDict(
         use_enum_values=False, arbitrary_types_allowed=True, validate_assignment=True
@@ -71,7 +74,7 @@ class Dataset(GroupField, extra="forbid"):
 
     @field_validator("data", mode="before")
     @classmethod
-    def validate_and_update(cls, value):
+    def _validate_and_update(cls, value):
         # check if data exist
         if value is None:
             return value
@@ -83,7 +86,7 @@ class Dataset(GroupField, extra="forbid"):
         return value
 
     @model_validator(mode="after")
-    def validate_data_matches_shape_dtype(self):
+    def _validate_data_matches_shape_dtype(self):
         """Ensure that `data` matches `dtype` and `shape`."""
 
         # check if data exist
@@ -116,7 +119,8 @@ class Dataset(GroupField, extra="forbid"):
         return self
 
     @classmethod
-    def cast(cls, data):
+    def cast(cls, data: np.ndarray) -> Dataset:
+        """Casts data from numpy array to Dataset."""
         if isinstance(data, np.ndarray):
             return cls(data=data)
         return data
@@ -140,3 +144,4 @@ class Dataset(GroupField, extra="forbid"):
 
 
 CastDataset = Annotated[Dataset, BeforeValidator(Dataset.cast)]
+"""Annotated type that automatically executes Dataset.cast"""

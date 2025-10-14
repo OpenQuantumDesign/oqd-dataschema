@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
 
 from types import MappingProxyType
 from typing import Annotated, Any, List, Literal, Optional, Tuple, Union
@@ -46,11 +47,38 @@ Column = Tuple[str, Optional[Literal[DTypes.names()]]]
 
 
 class Table(GroupField, extra="forbid"):
-    columns: List[Column]  # type: ignore
+    """
+    Schema representation for a table object to be saved within an HDF5 file.
+
+    Attributes:
+        columns: The columns in the table accompanied by their datatype. Types are inferred from the `data` attribute if not provided.
+        shape: The shape of the table (excludes the column index).
+        data: The numpy ndarray or recarray (of structured dtype) of the data, from which `dtype` and `shape` can be inferred.
+
+        attrs: A dictionary of attributes to append to the table.
+
+    Example:
+        ```python
+        dt = np.dtype(
+            [
+                ("index", np.int32),
+                ("t", np.float64),
+                ("z", np.complex128),
+                ("label", np.dtype("<U10")),
+            ]
+        )
+        table = Table(
+            columns=[("index", "int32"), ("t", "float64"), ("z", "complex128"), ("label", "str")],
+            data=np.array([(1, 0.1, 1 + 1j, "first"), (2, 0.2, 2 + 2j, "second")], dtype=dt),
+        )
+        ```
+    """
+
+    columns: List[Column]
     shape: Optional[Tuple[Union[int, None], ...]] = None
     data: Optional[Any] = Field(default=None, exclude=True)
 
-    attrs: Attrs = {}
+    attrs: Attrs = Field(default_factory=lambda: {})
 
     model_config = ConfigDict(
         use_enum_values=False, arbitrary_types_allowed=True, validate_assignment=True
@@ -68,7 +96,8 @@ class Table(GroupField, extra="forbid"):
         return value
 
     @property
-    def dataframe(self):
+    def dataframe(self) -> pd.DataFrame:
+        """Converts flat table to pandas DataFrame."""
         if len(self.shape) > 1:
             raise ValueError(
                 "Conversion to pandas DataFrame only supported on 1D Table."
@@ -104,7 +133,7 @@ class Table(GroupField, extra="forbid"):
 
     @field_validator("data", mode="before")
     @classmethod
-    def validate_and_update(cls, value):
+    def _validate_and_update(cls, value):
         # check if data exist
         if value is None:
             return value
@@ -125,7 +154,7 @@ class Table(GroupField, extra="forbid"):
         return value
 
     @model_validator(mode="after")
-    def validate_data_matches_shape_dtype(self):
+    def _validate_data_matches_shape_dtype(self):
         """Ensure that `data` matches `dtype` and `shape`."""
 
         # check if data exist
@@ -185,7 +214,8 @@ class Table(GroupField, extra="forbid"):
         return np.dtype(np_dtype)
 
     @classmethod
-    def cast(cls, data):
+    def cast(cls, data: np.ndarray | pd.DataFrame) -> Table:
+        """Casts data from pandas DataFrame or numpy structured array to Table."""
         if isinstance(data, pd.DataFrame):
             data = cls._pd_to_np(data)
 
@@ -229,3 +259,4 @@ class Table(GroupField, extra="forbid"):
 
 
 CastTable = Annotated[Table, BeforeValidator(Table.cast)]
+"""Annotated type that automatically executes Table.cast"""

@@ -1,29 +1,16 @@
-## Datastore
-
 <!-- prettier-ignore -->
-::: oqd_dataschema.datastore
+::: oqd_dataschema.group
     options:
         heading_level: 3
         members: [
-            "Datastore",
+            "GroupBase",
+            "GroupRegistry",
         ]
 
-
-## Base HDF5 Objects
-
-<!-- prettier-ignore -->
-::: oqd_dataschema.base
-    options:
-        heading_level: 3
-        members: [
-            "Group",
-            "Dataset",
-        ]
-
-## Specified Groups
+## Concrete groups
 
 <!-- prettier-ignore -->
-::: oqd_dataschema.groups
+::: oqd_dataschema.group
     options:
         heading_level: 3
         members: [

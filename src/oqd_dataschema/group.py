@@ -21,6 +21,7 @@ from typing import Annotated, ClassVar, Literal, Union
 from pydantic import (
     BaseModel,
     Discriminator,
+    Field,
     TypeAdapter,
 )
 
@@ -46,19 +47,20 @@ class GroupBase(BaseModel, extra="forbid"):
     """
     Schema representation for a group object within an HDF5 file.
 
-    Each grouping of data should be defined as a subclass of `Group`, and specify the datasets that it will contain.
+    Each grouping of data should be defined as a subclass of `GroupBase`, and specify the datasets that it will contain.
     This base object only has attributes, `attrs`, which are associated to the HDF5 group.
 
     Attributes:
-        attrs: A dictionary of attributes to append to the dataset.
+        attrs: A dictionary of attributes to append to the group.
 
-    Example:
-        ```
-        group = Group(attrs={'version': 2, 'date': '2025-01-01'})
-        ```
     """
 
-    attrs: Attrs = {}
+    attrs: Attrs = Field(default_factory=lambda: {})
+
+    def __new__(cls, *args, **kwargs):
+        if cls is GroupBase:
+            raise TypeError(f"only subclasses of '{cls.__name__}' may be instantiated")
+        return object.__new__(cls, *args, **kwargs)
 
     @staticmethod
     def _is_basic_groupfield_type(v):

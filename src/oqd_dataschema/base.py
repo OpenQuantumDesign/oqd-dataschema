@@ -16,12 +16,13 @@
 import typing
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Annotated, Optional, Union
+from typing import Annotated, Union
 
 import numpy as np
 from pydantic import (
     BaseModel,
     BeforeValidator,
+    Field,
 )
 
 ########################################################################################
@@ -69,18 +70,28 @@ def _valid_attr_key(value):
     return value
 
 
-Attrs = Optional[
-    dict[
-        Annotated[str, BeforeValidator(_valid_attr_key)],
-        Union[int, float, str, complex],
-    ]
-]
+AttrKey = Annotated[str, BeforeValidator(_valid_attr_key)]
+"""
+Annotated type that represents a valid key for attributes (prevents overwriting of protected attrs).
+"""
+
+Attrs = dict[AttrKey, Union[int, float, str, complex]]
+"""
+Type that represents attributes of an object.
+"""
 
 ########################################################################################
 
 
 class GroupField(BaseModel, ABC):
-    attrs: Attrs
+    """
+    Abstract class for a valid data field of Group.
+
+    Attributes:
+        attrs: A dictionary of attributes to append to the object.
+    """
+
+    attrs: Attrs = Field(default_factory=lambda: {})
 
     @classmethod
     def _is_supported_type(cls, type_):

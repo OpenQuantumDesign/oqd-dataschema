@@ -158,7 +158,7 @@ def contable(
     min_dim=None,
     max_dim=None,
 ):
-    """Implements dtype, dimension and shape constrains on the Table."""
+    """Implements field, dtype, dimension and shape constrains on the Table."""
     return Annotated[
         CastTable,
         AfterValidator(
@@ -181,7 +181,7 @@ def confolder(
     min_dim=None,
     max_dim=None,
 ):
-    """Implements dtype, dimension and shape constrains on the Folder."""
+    """Implements dimension and shape constrains on the Folder."""
     return Annotated[
         Folder,
         AfterValidator(_constraint_dim(min_dim=min_dim, max_dim=max_dim)),

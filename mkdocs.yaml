@@ -20,7 +20,11 @@ nav:
   - Get Started: index.md
   - Tutorial: tutorial.md
   # - Explanation: explanation.md
-  - API Reference: api.md
+  - API Reference:
+      - Base: api/base.md
+      - Group Field: api/groupfield.md
+      - Group: api/group.md
+      - Datastore: api/datastore.md
 
 theme:
   name: material
@@ -59,6 +63,7 @@ theme:
     - toc.follow
 
 plugins:
+  - search
   - mkdocstrings:
       handlers:
         python:
@@ -79,7 +84,7 @@ plugins:
             separate_signature: false
             group_by_category: true
             members_order: "source"
-          import:
+          inventories:
             - https://docs.python.org/3/objects.inv
             - https://docs.pydantic.dev/latest/objects.inv
             - https://pandas.pydata.org/docs/objects.inv
