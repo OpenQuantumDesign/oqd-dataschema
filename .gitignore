@@ -175,3 +175,4 @@ cython_debug/
 *.code-workspace
 .pre-commit-config.yaml
 _scripts
+.vscode
