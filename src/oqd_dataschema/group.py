@@ -26,17 +26,12 @@ from pydantic import (
 )
 
 from oqd_dataschema.base import Attrs, GroupField
-from oqd_dataschema.dataset import CastDataset
 
 ########################################################################################
 
 __all__ = [
     "GroupBase",
     "GroupRegistry",
-    "SinaraRawDataGroup",
-    "MeasurementOutcomesDataGroup",
-    "ExpectationValueDataGroup",
-    "OQDTestbenchDataGroup",
 ]
 
 
@@ -170,40 +165,3 @@ class GroupRegistry(metaclass=MetaGroupRegistry):
     """
 
     pass
-
-
-########################################################################################
-
-
-class SinaraRawDataGroup(GroupBase):
-    """
-    Example `Group` for raw data from the Sinara real-time control system.
-    This is a placeholder for demonstration and development.
-    """
-
-    camera_images: CastDataset
-
-
-class MeasurementOutcomesDataGroup(GroupBase):
-    """
-    Example `Group` for processed data classifying the readout of the state.
-    This is a placeholder for demonstration and development.
-    """
-
-    outcomes: CastDataset
-
-
-class ExpectationValueDataGroup(GroupBase):
-    """
-    Example `Group` for processed data calculating the expectation values.
-    This is a placeholder for demonstration and development.
-    """
-
-    expectation_value: CastDataset
-
-
-class OQDTestbenchDataGroup(GroupBase):
-    """ """
-
-    time: CastDataset
-    voltages: CastDataset
