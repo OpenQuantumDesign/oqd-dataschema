@@ -25,6 +25,7 @@ nav:
       - Group Field: api/groupfield.md
       - Group: api/group.md
       - Datastore: api/datastore.md
+      - Utilities: api/utils.md
 
 theme:
   name: material

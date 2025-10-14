@@ -15,7 +15,7 @@
 from __future__ import annotations
 
 from types import MappingProxyType
-from typing import Annotated, Any, List, Literal, Optional, Tuple, Union
+from typing import Annotated, Any, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -27,7 +27,7 @@ from pydantic import (
     model_validator,
 )
 
-from oqd_dataschema.base import Attrs, DTypes, GroupField
+from oqd_dataschema.base import Attrs, DTypeNames, DTypes, GroupField
 from oqd_dataschema.utils import (
     _flex_shape_equal,
     _is_list_unique,
@@ -43,7 +43,7 @@ __all__ = [
 ########################################################################################
 
 
-Column = Tuple[str, Optional[Literal[DTypes.names()]]]
+Column = Tuple[str, Optional[DTypeNames]]
 
 
 class Table(GroupField, extra="forbid"):

@@ -16,11 +16,7 @@ from .constrained import condataset, confolder, contable
 from .dataset import CastDataset, Dataset
 from .datastore import Datastore
 from .folder import CastFolder, Folder
-from .group import (
-    ExpectationValueDataGroup,
-    GroupBase,
-    GroupRegistry,
-)
+from .group import GroupBase, GroupRegistry
 from .table import CastTable, Table
 from .utils import dict_to_structured, unstructured_to_structured
 
@@ -30,10 +26,6 @@ __all__ = [
     "Datastore",
     "GroupBase",
     "GroupRegistry",
-    "ExpectationValueDataGroup",
-    "MeasurementOutcomesDataGroup",
-    "OQDTestbenchDataGroup",
-    "SinaraRawDataGroup",
     "Dataset",
     "CastDataset",
     "condataset",

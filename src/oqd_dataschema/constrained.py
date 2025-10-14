@@ -90,9 +90,33 @@ def _constrain_dtype_dataset(dataset, *, dtype_constraint=None):
 
 
 def condataset(
-    *, shape_constraint=None, dtype_constraint=None, min_dim=None, max_dim=None
+    *,
+    shape_constraint=None,
+    dtype_constraint=None,
+    min_dim=None,
+    max_dim=None,
 ) -> TypeAlias:
-    """Implements dtype, dimension and shape constrains on the Dataset."""
+    """Implements dtype, dimension and shape constrains on the Dataset.
+
+    Arguments:
+        shape_constraint (Tuple[Union[None, int],...]):
+        dtype_constraint (Tuple[DTypeNames,...]):
+        min_dim (int):
+        max_dim (int):
+
+    Example:
+        ```
+        class CustomGroup:
+            x: condataset(dtype_contraint=("int16","int32","int64))
+            y: condataset(shape_constraint=(100,))
+            z: condataset(min_dim=1, max_dim=1)
+
+        group = CustomGroup(x=,y=,z=) # succeeds as it obeys the constraints
+
+        group = CustomGroup(x=,y=,z=) # fails as it violates the constraints
+        ```
+
+    """
     return Annotated[
         CastDataset,
         AfterValidator(_constrain_dtype_dataset(dtype_constraint=dtype_constraint)),
@@ -158,7 +182,24 @@ def contable(
     min_dim=None,
     max_dim=None,
 ) -> TypeAlias:
-    """Implements field, dtype, dimension and shape constrains on the Table."""
+    """Implements field, dtype, dimension and shape constrains on the Table.
+
+    Example:
+        ```
+        class CustomGroup:
+            x: contable(dtype_contraint=("int16","int32","int64))
+            y: contable(shape_constraint=(100,))
+            z: contable(min_dim=1, max_dim=1)
+            u: contable(required_field=("c1","c2"))
+            v: contable(required_field=("c1", "c2"), strict_fields=True)
+
+
+        group = CustomGroup(x=,y=,z=,u=,v=) # succeeds as it obeys the constraints
+
+        group = CustomGroup(x=,y=,z=,u=,v=) # fails as it violates the constraints
+        ```
+
+    """
     return Annotated[
         CastTable,
         AfterValidator(
@@ -181,7 +222,21 @@ def confolder(
     min_dim=None,
     max_dim=None,
 ) -> TypeAlias:
-    """Implements dimension and shape constrains on the Folder."""
+    """Implements dimension and shape constrains on the Folder.
+
+    Example:
+        ```
+        class CustomGroup:
+            x: confolder(shape_constraint=(100,))
+            y: confolder(min_dim=1, max_dim=1)
+
+
+        group = CustomGroup(x=,y=) # succeeds as it obeys the constraints
+
+        group = CustomGroup(x=,y=) # fails as it violates the constraints
+        ```
+
+    """
     return Annotated[
         Folder,
         AfterValidator(_constrain_dim(min_dim=min_dim, max_dim=max_dim)),

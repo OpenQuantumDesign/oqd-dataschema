@@ -20,7 +20,10 @@ from numpy.lib import recfunctions as rfn
 
 ########################################################################################
 
-__all__ = ["_flex_shape_equal", "_validator_from_condition", "_is_list_unique"]
+__all__ = [
+    "unstructured_to_structured",
+    "dict_to_structured",
+]
 
 
 ########################################################################################

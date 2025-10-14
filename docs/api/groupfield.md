@@ -15,6 +15,7 @@
         heading_level: 3
         members: [
             "Dataset",
+            "CastDataset",
         ]
 
 ## Table
@@ -25,6 +26,7 @@
         heading_level: 3
         members: [
             "Table",
+            "CastTable",
         ]
 
 ## Folder
@@ -35,6 +37,7 @@
         heading_level: 3
         members: [
             "Folder",
+            "CastFolder",
         ]
 
 ## Constrained Group Fields

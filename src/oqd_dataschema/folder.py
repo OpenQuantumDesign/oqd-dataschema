@@ -15,7 +15,7 @@
 from __future__ import annotations
 
 from types import MappingProxyType
-from typing import Annotated, Any, Dict, Literal, Optional, Tuple, Union
+from typing import Annotated, Any, Dict, Optional, Tuple, Union
 
 import numpy as np
 from pydantic import (
@@ -27,7 +27,7 @@ from pydantic import (
 )
 from typing_extensions import TypeAliasType
 
-from oqd_dataschema.base import Attrs, DTypes, GroupField
+from oqd_dataschema.base import Attrs, DTypeNames, DTypes, GroupField
 from oqd_dataschema.utils import _flex_shape_equal
 
 ########################################################################################
@@ -38,7 +38,7 @@ __all__ = ["Folder", "CastFolder"]
 
 DocumentSchema = TypeAliasType(
     "DocumentSchema",
-    Dict[str, Union["DocumentSchema", Optional[Literal[DTypes.names()]]]],  # type: ignore
+    Dict[str, Union["DocumentSchema", Optional[DTypeNames]]],  # type: ignore
 )
 
 

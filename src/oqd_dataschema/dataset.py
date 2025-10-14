@@ -16,7 +16,7 @@
 
 from __future__ import annotations
 
-from typing import Annotated, Any, Literal, Optional, Tuple, Union
+from typing import Annotated, Any, Optional, Tuple, Union
 
 import numpy as np
 from pydantic import (
@@ -27,7 +27,7 @@ from pydantic import (
     model_validator,
 )
 
-from oqd_dataschema.base import Attrs, DTypes, GroupField
+from oqd_dataschema.base import Attrs, DTypeNames, DTypes, GroupField
 
 from .utils import _flex_shape_equal
 
@@ -62,7 +62,7 @@ class Dataset(GroupField, extra="forbid"):
         ```
     """
 
-    dtype: Optional[Literal[DTypes.names()]] = None  # type: ignore
+    dtype: Optional[DTypeNames] = None  # type: ignore
     shape: Optional[Tuple[Union[int, None], ...]] = None
     data: Optional[Any] = Field(default=None, exclude=True)
 

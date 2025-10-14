@@ -13,10 +13,12 @@
 # limitations under the License.
 
 # %%
+from __future__ import annotations
+
 import typing
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Annotated, Union
+from typing import Annotated, Literal, Union
 
 import numpy as np
 from pydantic import (
@@ -27,12 +29,25 @@ from pydantic import (
 
 ########################################################################################
 
-__all__ = ["Attrs", "DTypes", "GroupField"]
+__all__ = ["Attrs", "DTypes", "DTypeNames", "GroupField"]
 
 ########################################################################################
 
 
 class DTypes(Enum):
+    """
+    Enum for data types supported by oqd-dataschema.
+
+    |Type   |Variant|
+    |-------|-------|
+    |Boolean|`BOOL` |
+    |Integer|`INT16`, `INT32`, `INT64` (signed)<br>`UINT16`, `UINT32`, `UINT64` (unsigned)|
+    |Float  |`FLOAT32`, `FLOAT64`|
+    |Complex|`COMPLEX64`, `COMPLEX128`|
+    |Bytes  |`BYTES`|
+    |String |`STR`, `STRING`|
+    """
+
     BOOL = np.dtypes.BoolDType
     INT16 = np.dtypes.Int16DType
     INT32 = np.dtypes.Int32DType
@@ -50,12 +65,24 @@ class DTypes(Enum):
     STRING = np.dtypes.StringDType
 
     @classmethod
-    def get(cls, name):
+    def get(cls, name: str) -> DTypes:
+        """
+        Get the [`DTypes`][oqd_dataschema.base.DTypes] enum variant by lowercase name.
+        """
         return cls[name.upper()]
 
     @classmethod
     def names(cls):
+        """
+        Get the lowercase names of all variants of [`DTypes`][oqd_dataschema.base.DTypes] enum.
+        """
         return tuple((dtype.name.lower() for dtype in cls))
+
+
+DTypeNames = Literal[DTypes.names()]
+"""
+Literal list of lowercase names for [`DTypes`][oqd_dataschema.base.DTypes] variants.
+"""
 
 
 ########################################################################################
@@ -63,7 +90,10 @@ class DTypes(Enum):
 invalid_attrs = ["_datastore_signature", "_group_schema"]
 
 
-def _valid_attr_key(value):
+def _valid_attr_key(value: str) -> str:
+    """
+    Validates attribute keys (prevents overwriting of protected attrs).
+    """
     if value in invalid_attrs:
         raise KeyError
 
@@ -108,3 +138,6 @@ class GroupField(BaseModel, ABC):
     def _handle_data_load(self, data: np.ndarray) -> np.ndarray:
         """Hook into [Datastore.model_validate_hdf5][oqd_dataschema.datastore.Datastore.model_validate_hdf5] for reversing compatibility mapping, i.e. mapping data back to original type."""
         pass
+
+
+# %%
