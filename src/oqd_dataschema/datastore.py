@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import json
 import pathlib
-from typing import Any, Dict, Literal
+from typing import Any, Callable, Dict, Literal
 
 import h5py
 from pydantic import (
@@ -220,8 +220,13 @@ class Datastore(BaseModel, extra="forbid"):
 
         self.update(**groups)
 
-    def pipe(self, func) -> Datastore:
-        return func(self)
+    def pipe(self, func: Callable[[Datastore], None]) -> Datastore:
+        _result = func(self)
+
+        if _result is not None:
+            raise ValueError("`func` must return None.")
+
+        return self
 
 
 # %%
