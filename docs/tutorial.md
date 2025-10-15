@@ -52,10 +52,9 @@ def process(datastore) -> Datastore:
     _g = datastore.get("g1")
 
     g2 = CustomGroup(t=Dataset(data=_g.t.data), x=Dataset(data=_g.x.data + 1j))
+    g2.attrs["_gen_by_pipe"] = "process"
 
     datastore.add(g2=g2)
-
-    return datastore
 
 
 datastore.pipe(process)
