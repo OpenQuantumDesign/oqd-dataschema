@@ -96,12 +96,15 @@ class GroupBase(BaseModel, extra="forbid"):
         super().__init_subclass__(**kwargs)
 
         for k, v in cls.__annotations__.items():
-            if k in ["class_", "attrs"]:
+            if k == "class_":
+                raise AttributeError("`class_` attribute should not be set manually.")
+
+            if k == "attrs" and v is not Attrs:
                 raise AttributeError(
-                    "`class_` and `attrs` attribute should not be set manually."
+                    "`attrs` attribute must have type annotation of Attrs."
                 )
 
-            if cls._is_classvar(v):
+            if k == "attrs" or cls._is_classvar(v):
                 continue
 
             if not cls._is_groupfield_type(v):
