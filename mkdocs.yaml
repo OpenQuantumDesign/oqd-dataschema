@@ -18,7 +18,9 @@ extra:
 
 nav:
   - Get Started: index.md
-  - Tutorial: tutorial.md
+  - Tutorials:
+      - Basics: tutorials/basic.md
+      - Datasets/Tables/Folders: tutorials/advanced.md
   - Explanation: explanation.md
   - API Reference:
       - Base: api/base.md
