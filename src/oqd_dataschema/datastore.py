@@ -14,15 +14,21 @@
 
 # %%
 
+from __future__ import annotations
+
+import json
 import pathlib
-from typing import Any, Dict, Literal, Optional
+from typing import Any, Callable, Dict, Literal
 
 import h5py
-import numpy as np
-from pydantic import BaseModel, model_validator
-from pydantic.types import TypeVar
+from pydantic import (
+    BaseModel,
+    Field,
+    field_validator,
+)
 
-from oqd_dataschema.base import Dataset, GroupBase, GroupRegistry
+from oqd_dataschema.base import Attrs, GroupField
+from oqd_dataschema.group import GroupBase, GroupRegistry
 
 ########################################################################################
 
@@ -34,50 +40,93 @@ __all__ = ["Datastore"]
 # %%
 class Datastore(BaseModel, extra="forbid"):
     """
-    Saves the model and its associated data to an HDF5 file.
-    This method serializes the model's data and attributes into an HDF5 file
-    at the specified filepath.
+    Class representing a datastore with restricted HDF5 format.
 
     Attributes:
-        filepath (pathlib.Path): The path to the HDF5 file where the model data will be saved.
+        groups (Dict[str,Group]): groups of data.
+        attrs (Attrs): attributes of the datastore.
     """
 
-    groups: Dict[str, Any]
+    groups: Dict[str, Any] = Field(default_factory=lambda: {})
 
-    @model_validator(mode="before")
+    attrs: Attrs = Field(default_factory=lambda: {})
+
+    @classmethod
+    def _validate_group(cls, key, group):
+        """Helper function for validating group to be of type Group registered in the GroupRegistry."""
+        if isinstance(group, GroupBase):
+            return group
+
+        if isinstance(group, dict):
+            return GroupRegistry.adapter.validate_python(group)
+
+        raise ValueError(f"Key `{key}` contains invalid group data.")
+
+    @field_validator("groups", mode="before")
     @classmethod
     def validate_groups(cls, data):
-        if isinstance(data, dict) and "groups" in data:
-            # Get the current adapter from registry
-            try:
-                validated_groups = {}
+        """Validates groups to be of type Group registered in the GroupRegistry."""
+        if GroupRegistry.groups == {}:
+            raise ValueError(
+                "No group types available. Register group types before creating Datastore."
+            )
 
-                for key, group_data in data["groups"].items():
-                    if isinstance(group_data, GroupBase):
-                        # Already a Group instance
-                        validated_groups[key] = group_data
-                    elif isinstance(group_data, dict):
-                        # Parse dict using discriminated union
-                        validated_groups[key] = GroupRegistry.adapter.validate_python(
-                            group_data
-                        )
-                    else:
-                        raise ValueError(
-                            f"Invalid group data for key '{key}': {type(group_data)}"
-                        )
+        validated_groups = {k: cls._validate_group(k, v) for k, v in data.items()}
+        return validated_groups
 
-                data["groups"] = validated_groups
+    def _dump_group(self, h5datastore, gkey, group):
+        """Helper function for dumping Group."""
+        # remove existing group
+        if gkey in h5datastore.keys():
+            del h5datastore[gkey]
 
-            except ValueError as e:
-                if "No group types registered" in str(e):
-                    raise ValueError(
-                        "No group types available. Register group types before creating Datastore."
-                    )
-                raise
+        # create group
+        h5_group = h5datastore.create_group(gkey)
 
-        return data
+        # dump group schema
+        h5_group.attrs["_group_schema"] = json.dumps(
+            group.model_json_schema(), indent=2
+        )
 
-    def model_dump_hdf5(self, filepath: pathlib.Path, mode: Literal["w", "a"] = "a"):
+        # dump group attributes
+        for akey, attr in group.attrs.items():
+            h5_group.attrs[akey] = attr
+
+        # dump group data
+        for dkey, dataset in group.__dict__.items():
+            if dkey in ["attrs", "class_"]:
+                continue
+
+            # if group field contain dictionary of Dataset
+            if isinstance(dataset, dict):
+                h5_subgroup = h5_group.create_group(dkey)
+                for ddkey, ddataset in dataset.items():
+                    self._dump_dataset(h5_subgroup, ddkey, ddataset)
+                continue
+
+            self._dump_dataset(h5_group, dkey, dataset)
+
+    def _dump_dataset(self, h5group, dkey, dataset):
+        """Helper function for dumping Dataset."""
+
+        if dataset is not None and not isinstance(dataset, GroupField):
+            raise ValueError("Group data field is not a Dataset or a Table.")
+
+        # handle optional dataset
+        if dataset is None:
+            h5_dataset = h5group.create_dataset(dkey, data=h5py.Empty("f"))
+            return
+
+        # dtype str converted to bytes when dumped (h5 compatibility)
+        h5_dataset = h5group.create_dataset(
+            dkey, data=dataset._handle_data_dump(dataset.data)
+        )
+
+        # dump dataset attributes
+        for akey, attr in dataset.attrs.items():
+            h5_dataset.attrs[akey] = attr
+
+    def model_dump_hdf5(self, filepath: pathlib.Path, mode: Literal["w", "a"] = "w"):
         """
         Saves the model and its associated data to an HDF5 file.
         This method serializes the model's data and attributes into an HDF5 file
@@ -89,28 +138,33 @@ class Datastore(BaseModel, extra="forbid"):
         filepath.parent.mkdir(exist_ok=True, parents=True)
 
         with h5py.File(filepath, mode) as f:
-            # store the model JSON schema
-            f.attrs["model"] = self.model_dump_json()
+            # dump the datastore signature
+            f.attrs["_datastore_signature"] = self.model_dump_json(indent=2)
+            for akey, attr in self.attrs.items():
+                f.attrs[akey] = attr
 
-            # store each group
+            # dump each group
             for gkey, group in self.groups.items():
-                if gkey in f.keys():
-                    del f[gkey]
-                h5_group = f.create_group(gkey)
-                for akey, attr in group.attrs.items():
-                    h5_group.attrs[akey] = attr
+                if gkey in ["attrs", "class_"]:
+                    continue
 
-                for dkey, dataset in group.__dict__.items():
-                    if not isinstance(dataset, Dataset):
-                        continue
-                    h5_dataset = h5_group.create_dataset(dkey, data=dataset.data)
-                    for akey, attr in dataset.attrs.items():
-                        h5_dataset.attrs[akey] = attr
+                self._dump_group(f, gkey, group)
 
     @classmethod
-    def model_validate_hdf5(
-        cls, filepath: pathlib.Path, types: Optional[TypeVar] = None
-    ):
+    def _load_data(cls, group, h5group, dkey, ikey=None):
+        field = group.__dict__[ikey] if ikey else group.__dict__
+        h5field = h5group[ikey] if ikey else h5group
+
+        if isinstance(field[dkey], GroupField):
+            field[dkey].data = field[dkey]._handle_data_load(h5field[dkey][()])
+            return
+
+        raise ValueError(
+            "Attempted to load Group data field that is neither Dataset nor Table."
+        )
+
+    @classmethod
+    def model_validate_hdf5(cls, filepath: pathlib.Path):
         """
         Loads the model from an HDF5 file at the specified filepath.
 
@@ -118,12 +172,61 @@ class Datastore(BaseModel, extra="forbid"):
             filepath (pathlib.Path): The path to the HDF5 file where the model data will be read and validated from.
         """
         with h5py.File(filepath, "r") as f:
-            self = cls.model_validate_json(f.attrs["model"])
+            # Load datastore signature
+            self = cls.model_validate_json(f.attrs["_datastore_signature"])
 
-            # loop through all groups in the model schema and load HDF5 store
-            for gkey, group in self.groups.items():
-                for dkey, val in group.__dict__.items():
+            # loop through all groups in the model schema and load the data
+            for gkey, group in self:
+                for dkey in group.__class__.model_fields:
+                    # ignore attrs and class_ fields
                     if dkey in ("attrs", "class_"):
                         continue
-                    group.__dict__[dkey].data = np.array(f[gkey][dkey][()])
+
+                    if group.__dict__[dkey] is None:
+                        continue
+
+                    # load data for dict of Dataset or dict of Table
+                    if isinstance(group.__dict__[dkey], dict):
+                        for ddkey in group.__dict__[dkey]:
+                            cls._load_data(group, f[gkey], dkey=ddkey, ikey=dkey)
+                        continue
+
+                    # load Dataset or Table data
+                    cls._load_data(group, f[gkey], dkey=dkey)
+
             return self
+
+    def __getitem__(self, key):
+        """Overloads indexing to retrieve elements in groups."""
+        return self.groups.__getitem__(key)
+
+    def __iter__(self):
+        """Overloads iter to iterate over elements in groups."""
+        return self.groups.items().__iter__()
+
+    def update(self, **groups):
+        """Updates groups in the datastore, overwriting past values."""
+        for k, v in groups.items():
+            self.groups[k] = v
+
+    def add(self, **groups):
+        """Adds a new groups to the datastore."""
+
+        existing_keys = set(groups.keys()).intersection(set(self.groups.keys()))
+        if existing_keys:
+            raise ValueError(
+                f"Keys {existing_keys} already exist in the datastore, use `update` instead if intending to overwrite past data."
+            )
+
+        self.update(**groups)
+
+    def pipe(self, func: Callable[[Datastore], None]) -> Datastore:
+        _result = func(self)
+
+        if _result is not None:
+            raise ValueError("`func` must return None.")
+
+        return self
+
+
+# %%

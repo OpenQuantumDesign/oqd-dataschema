@@ -27,9 +27,9 @@ classifiers = [
 ]
 
 dependencies = [
-    "bidict>=0.23.1",
-    "h5py>=3.13.0",
-    "pydantic>=2.10.6",
+    "h5py>=3.14.0",
+    "pandas>=2.3.3",
+ "pydantic>=2.10.6",
 ]
 
 [project.optional-dependencies]
@@ -52,12 +52,7 @@ select = ["E4", "E7", "E9", "F", "I"]
 fixable = ["ALL"]
 
 [dependency-groups]
-dev = [
-    "jupyter>=1.1.1",
-    "pre-commit>=4.1.0",
-    "rich>=14.1.0",
-    "ruff>=0.13.1",
-]
+dev = ["jupyter>=1.1.1", "pre-commit>=4.1.0", "rich>=14.1.0", "ruff>=0.13.1"]
 
 
 [project.urls]
