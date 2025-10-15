@@ -14,6 +14,8 @@
 
 # %%
 
+from __future__ import annotations
+
 import json
 import pathlib
 from typing import Any, Dict, Literal
@@ -217,6 +219,9 @@ class Datastore(BaseModel, extra="forbid"):
             )
 
         self.update(**groups)
+
+    def pipe(self, func) -> Datastore:
+        return func(self)
 
 
 # %%
