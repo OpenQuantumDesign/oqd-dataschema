@@ -1,108 +1,74 @@
-
 # Tutorial
 
-```python
-import pathlib
-
-import numpy as np
-from rich.pretty import pprint
-
-from oqd_dataschema.base import Dataset
-from oqd_dataschema.datastore import Datastore
-from oqd_dataschema.groups import (
-    ExpectationValueDataGroup,
-    MeasurementOutcomesDataGroup,
-    SinaraRawDataGroup,
-)
-```
+## Group Definition
 
 ```python
-raw = SinaraRawDataGroup(
-    camera_images=Dataset(shape=(3, 2, 2), dtype="float32"),
-    attrs={"date": "2025-03-26", "version": 0.1},
-)
-pprint(raw)
-```
+from oqd_dataschema import GroupBase, Attrs
 
-
-
-```python
-raw.camera_images.data = np.random.uniform(size=(3, 2, 2)).astype("float32")
-pprint(raw)
-```
-
-
-
-```python
-raw.camera_images.data = np.random.uniform(size=(3, 2, 2)).astype("float32")
-```
-
-
-
-```python
-data = Datastore(groups={"raw": raw})
-pprint(data)
-```
-
-
-
-
-```python
-def process_raw(raw: SinaraRawDataGroup) -> MeasurementOutcomesDataGroup:
-    processed = MeasurementOutcomesDataGroup(
-        outcomes=Dataset(
-            data=np.round(raw.camera_images.data.mean(axis=(1, 2))),
+class CustomGroup(GroupBase):
+    attrs: Attrs = Field(
+        default_factory=lambda: dict(
+            timestamp=str(datetime.datetime.now(datetime.timezone.utc))
         )
     )
-    return processed
-
-
-processed = process_raw(data.groups["raw"])
-pprint(processed)
+    t: Dataset
+    x: Dataset
 ```
 
-
-
+Defined groups are automatically registered into the [`GroupRegistry`][oqd_dataschema.group.GroupRegistry].
 
 ```python
-data.groups.update(processed=processed)
-pprint(data)
+from oqd_dataschema import GroupRegistry
+
+GroupRegistry.groups
 ```
 
-
-
+## Initialize Group
 
 ```python
-def process_outcomes(
-    measurements: MeasurementOutcomesDataGroup,
-) -> ExpectationValueDataGroup:
-    expval = ExpectationValueDataGroup(
-        expectation_value=Dataset(
-            shape=(),
-            dtype="float32",
-            data=measurements.outcomes.data.mean(),
-            attrs={"date": "20", "input": 10},
-        )
-    )
-    return expval
+t = np.linspace(0, 1, 101).astype(np.float32)
+x = np.sin(t).astype(np.complex64)
 
+group = CustomGroup(
+    t=Dataset(dtype="float32", shape=(101,)), x=Dataset(dtype="complex64", shape=(101,))
+)
 
-expval = process_outcomes(processed)
-data.groups.update(expval=process_outcomes(data.groups["processed"]))
-
-pprint(expval)
+group.t.data = t
+group.x.data = x
 ```
 
-
+## Initialize Datastore
 
 ```python
-filepath = pathlib.Path("test.h5")
-data.model_dump_hdf5(filepath)
+from oqd_datastore import Datastore
+
+datastore = Datastore(groups={"g1": group})
 ```
 
-
+## Data pipeline
 
 ```python
-data_reload = Datastore.model_validate_hdf5(filepath)
-pprint(data_reload)
+def process(datastore) -> Datastore:
+    _g = datastore.get("g1")
+
+    g2 = CustomGroup(t=Dataset(data=_g.t.data), x=Dataset(data=_g.x.data + 1j))
+
+    datastore.add(g2=g2)
+
+    return datastore
+
+
+datastore.pipe(process)
+```
+
+## Save Datastore
+
+```python
+datastore.model_dump_hdf5(pathlib.Path("datastore.h5"), mode="w")
+```
+
+## Load Datastore
+
+```python
+reloaded_datastore = Datastore.model_validate_hdf5(pathlib.Path("datastore.h5"))
 ```
