@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from .base import Attrs, DTypes
 from .constrained import condataset, confolder, contable
 from .dataset import CastDataset, Dataset
 from .datastore import Datastore
@@ -23,6 +24,8 @@ from .utils import dict_to_structured, unstructured_to_structured
 ########################################################################################
 
 __all__ = [
+    "Attrs",
+    "DTypes",
     "Datastore",
     "GroupBase",
     "GroupRegistry",
