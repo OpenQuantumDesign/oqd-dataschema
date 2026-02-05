@@ -1,0 +1,275 @@
+# Copyright 2024-2025 Open Quantum Design
+
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+
+#     http://www.apache.org/licenses/LICENSE-2.0
+
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+from __future__ import annotations
+
+from types import MappingProxyType
+from typing import Annotated, Any, Dict, Optional, Tuple, Union
+
+import numpy as np
+from pydantic import (
+    BeforeValidator,
+    ConfigDict,
+    Field,
+    field_validator,
+    model_validator,
+)
+from typing_extensions import TypeAliasType
+
+from oqd_dataschema.base import Attrs, DTypeNames, DTypes, GroupField
+from oqd_dataschema.utils import _flex_shape_equal
+
+########################################################################################
+
+__all__ = ["Folder", "CastFolder"]
+
+########################################################################################
+
+DocumentSchema = TypeAliasType(
+    "DocumentSchema",
+    Dict[str, Union["DocumentSchema", Optional[DTypeNames]]],  # type: ignore
+)
+
+
+class Folder(GroupField, extra="forbid"):
+    """
+    Schema representation for a table object to be saved within an HDF5 file.
+
+    Attributes:
+        document_schema: The schema for a document (structured type with keys and their datatype). Types are inferred from the `data` attribute if not provided.
+        shape: The shape of the folder.
+        data: The numpy ndarray or recarray (of structured dtype) of the data, from which `dtype` and `shape` can be inferred.
+
+        attrs: A dictionary of attributes to append to the folder.
+
+    Example:
+        ```python
+        schema = dict(
+            index="int32",
+            t="float64",
+            channels=dict(ch1="complex128", ch2="complex128"),
+            label="str",
+        )
+        dt = np.dtype(
+            [
+                ("index", np.int32),
+                ("t", np.float64),
+                ("channels", np.dtype([("ch1", np.complex128), ("ch2", np.complex128)])),
+                ("label", np.dtype("<U10")),
+            ]
+        )
+        folder = Folder(
+            document_schema=schema,
+            data=np.array(
+                [(1, 0.1, (1 + 1j, 1 - 1j), "first"), (2, 0.2, (2 + 2j, 2 - 2j), "second")],
+                dtype=dt,
+            ),
+        )
+        ```
+    """
+
+    document_schema: DocumentSchema
+    shape: Optional[Tuple[Union[int, None], ...]] = None
+    data: Optional[Any] = Field(default=None, exclude=True)
+
+    attrs: Attrs = Field(default_factory=lambda: {})
+
+    model_config = ConfigDict(
+        use_enum_values=False, arbitrary_types_allowed=True, validate_assignment=True
+    )
+
+    @field_validator("data", mode="before")
+    @classmethod
+    def _validate_and_update(cls, value):
+        # check if data exist
+        if value is None:
+            return value
+
+        # check if data is a numpy array
+        if not isinstance(value, np.ndarray):
+            raise TypeError("`data` must be a numpy.ndarray.")
+
+        if not isinstance(value.dtype.fields, MappingProxyType):
+            raise TypeError("dtype of data must be a structured dtype.")
+
+        value = value.view(np.recarray)
+
+        return value
+
+    @staticmethod
+    def _is_valid_array(document_schema, data_dtype, position=""):
+        # check if data_dtype is a structured dtype
+        if not isinstance(data_dtype.fields, MappingProxyType):
+            raise TypeError(
+                f"Error {f'in key `{position}`' if position else 'at root'}, expected structured dtype matching {document_schema = } but got unstructured dtype {data_dtype = }."
+            )
+
+        # check if fields all match
+        if set(document_schema.keys()) != set(data_dtype.fields.keys()):
+            diff = set(document_schema.keys()).difference(set(data_dtype.fields.keys()))
+            rv_diff = set(data_dtype.fields.keys()).difference(
+                set(document_schema.keys())
+            )
+            raise ValueError(
+                f"Error {f'in key `{position}`' if position else 'at root '}, mismatched {'subkeys' if position else 'keys'} between `document_schema` (unmatched = {diff}) and numpy data structured dtype (unmatched = {rv_diff})."
+            )
+
+        # recursively check document_schema matches structured dtype data_dtype
+        for k, v in document_schema.items():
+            if isinstance(v, dict):
+                Folder._is_valid_array(
+                    v, data_dtype.fields[k][0], position + "." + k if position else k
+                )
+                continue
+
+            # check if dtypes match
+            if (
+                v is not None
+                and type(data_dtype.fields[k][0]) is not DTypes.get(v).value
+            ):
+                raise ValueError(
+                    f"Error {f'in key `{position}`' if position else 'at root '}, expected {'subkey' if position else 'key'} `{k}` to be of dtype compatible with {v} but got dtype {data_dtype.fields[k][0]}."
+                )
+
+    @model_validator(mode="after")
+    def _validate_data_matches_shape_dtype(self):
+        """Ensure that `data` matches `dtype` and `shape`."""
+
+        # check if data exist
+        if self.data is None:
+            return self
+
+        # check if document_schema matches the data's structured dtype
+        self._is_valid_array(self.document_schema, self.data.dtype)
+
+        # check if shape mataches data
+        if self.shape is not None and not _flex_shape_equal(
+            self.data.shape, self.shape
+        ):
+            raise ValueError(f"Expected shape {self.shape}, but got {self.data.shape}.")
+
+        # reassign dtype if it is None
+        document_schema_from_dtype = self._get_document_schema_from_dtype(
+            self.data.dtype
+        )
+        if self.document_schema != document_schema_from_dtype:
+            self.document_schema = document_schema_from_dtype
+
+        # resassign shape to concrete value if it is None or a flexible shape
+        if self.shape != self.data.shape:
+            self.shape = self.data.shape
+
+        return self
+
+    @staticmethod
+    def _get_document_schema_from_dtype(dtype):
+        document_schema = {}
+
+        for k, (v, _) in dtype.fields.items():
+            if isinstance(v.fields, MappingProxyType):
+                dt = Folder._get_document_schema_from_dtype(v)
+            else:
+                dt = DTypes(type(v)).name.lower()
+
+            document_schema[k] = dt
+
+        return document_schema
+
+    @staticmethod
+    def _numpy_dtype(document_schema, *, str_size=64, bytes_size=64):
+        np_dtype = []
+
+        for k, v in document_schema.items():
+            if v is None:
+                raise ValueError(
+                    "Method numpy_dtype can only be called on concrete types."
+                )
+
+            if isinstance(v, dict):
+                dt = Folder._numpy_dtype(
+                    document_schema[k], str_size=str_size, bytes_size=bytes_size
+                )
+            elif v == "str":
+                dt = np.dtypes.StrDType(str_size)
+            elif v == "bytes":
+                dt = np.dtypes.BytesDType(bytes_size)
+            else:
+                dt = DTypes.get(v).value()
+
+            np_dtype.append((k, dt))
+
+        return np.dtype(np_dtype)
+
+    def numpy_dtype(self, *, str_size=64, bytes_size=64) -> np.dtype:
+        return self._numpy_dtype(
+            self.document_schema, str_size=str_size, bytes_size=bytes_size
+        )
+
+    @staticmethod
+    def _dump_dtype_str_to_bytes(dtype):
+        np_dtype = []
+
+        for k, (v, _) in dtype.fields.items():
+            if isinstance(v.fields, MappingProxyType):
+                dt = Folder._dump_dtype_str_to_bytes(v)
+            elif type(v) is np.dtypes.StrDType:
+                dt = np.empty(0, dtype=v).astype(np.dtypes.BytesDType).dtype
+            else:
+                dt = v
+
+            np_dtype.append((k, dt))
+
+        return np.dtype(np_dtype)
+
+    def _handle_data_dump(self, data):
+        np_dtype = self._dump_dtype_str_to_bytes(data.dtype)
+
+        return data.astype(np_dtype)
+
+    @staticmethod
+    def _load_dtype_bytes_to_str(document_schema, dtype):
+        np_dtype = []
+
+        for k, (v, _) in dtype.fields.items():
+            if isinstance(v.fields, MappingProxyType):
+                dt = Folder._load_dtype_bytes_to_str(document_schema[k], v)
+            elif document_schema[k] == "str":
+                dt = np.empty(0, dtype=v).astype(np.dtypes.StrDType).dtype
+            else:
+                dt = v
+
+            np_dtype.append((k, dt))
+
+        return np.dtype(np_dtype)
+
+    def _handle_data_load(self, data):
+        np_dtype = self._load_dtype_bytes_to_str(self.document_schema, data.dtype)
+
+        return data.astype(np_dtype)
+
+    @classmethod
+    def cast(cls, data: np.ndarray) -> Folder:
+        """Casts data from numpy structured array to Folder."""
+        if isinstance(data, np.ndarray):
+            if not isinstance(data.dtype.fields, MappingProxyType):
+                raise TypeError("dtype of data must be a structured dtype.")
+
+            document_schema = cls._get_document_schema_from_dtype(data.dtype)
+
+            return cls(document_schema=document_schema, data=data)
+        return data
+
+
+CastFolder = Annotated[Folder, BeforeValidator(Folder.cast)]
+"""Annotated type that automatically executes Folder.cast"""
