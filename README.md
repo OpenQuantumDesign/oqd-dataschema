@@ -4,9 +4,6 @@
     Open Quantum Design: Dataschema
 </h2>
 
-> [!NOTE]
-> :bangbang: Still in very early stages of development! Significant breaking changes are expected.
-
 This library defines a standard dataschema for storing large, processed datasets from OQD classical emulators and real hardware devices.
 The design goals are to have:
 
