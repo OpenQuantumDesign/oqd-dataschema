@@ -18,6 +18,7 @@ from .dataset import CastDataset, Dataset
 from .datastore import Datastore
 from .folder import CastFolder, Folder
 from .group import GroupBase, GroupRegistry
+from .groups import AnalogEmulatorDataGroup
 from .table import CastTable, Table
 from .utils import dict_to_structured, unstructured_to_structured
 
@@ -40,4 +41,5 @@ __all__ = [
     "confolder",
     "dict_to_structured",
     "unstructured_to_structured",
+    "AnalogEmulatorDataGroup",
 ]
