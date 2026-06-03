@@ -16,6 +16,7 @@ from .base import Attrs, DTypes
 from .constrained import condataset, confolder, contable
 from .dataset import CastDataset, Dataset
 from .datastore import Datastore
+from .emulator import TrICalEmulatorDataGroup
 from .folder import CastFolder, Folder
 from .group import GroupBase, GroupRegistry
 from .table import CastTable, Table
@@ -27,6 +28,7 @@ __all__ = [
     "Attrs",
     "DTypes",
     "Datastore",
+    "TrICalEmulatorDataGroup",
     "GroupBase",
     "GroupRegistry",
     "Dataset",
